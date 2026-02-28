@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>化学プラント経営ゲーム</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <header id="game-header">
+      <h1>化学プラント経営ゲーム</h1>
+      <div id="status-bar">
+        <div class="status-item">
+          <span class="label">資金</span>
+          <span id="display-money" class="value money">¥5,000</span>
+        </div>
+        <div class="status-item">
+          <span class="label">期</span>
+          <span id="display-turn" class="value">第1期</span>
+        </div>
+        <div class="status-item">
+          <span class="label">時代</span>
+          <span id="display-era" class="value">ソーダ工業時代</span>
+        </div>
+        <div class="status-item">
+          <span class="label">技術Lv</span>
+          <span id="display-tech" class="value">1</span>
+        </div>
+      </div>
+    </header>
+
+    <nav id="tab-nav">
+      <button class="tab-btn active" data-tab="plants">プラント</button>
+      <button class="tab-btn" data-tab="market">市場</button>
+      <button class="tab-btn" data-tab="inventory">在庫</button>
+      <button class="tab-btn" data-tab="research">研究開発</button>
+    </nav>
+
+    <main id="main-content">
+      <div id="tab-plants" class="tab-content active"></div>
+      <div id="tab-market" class="tab-content"></div>
+      <div id="tab-inventory" class="tab-content"></div>
+      <div id="tab-research" class="tab-content"></div>
+    </main>
+
+    <div id="action-bar">
+      <button id="btn-end-turn">ターン終了 ▶</button>
+    </div>
+
+    <div id="game-log">
+      <div id="log-header">ログ</div>
+      <div id="log-content"></div>
+    </div>
+  </div>
+
+  <div id="modal-overlay" class="hidden">
+    <div id="modal">
+      <div id="modal-header">
+        <h2 id="modal-title"></h2>
+        <button id="modal-close">&times;</button>
+      </div>
+      <div id="modal-body"></div>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/simulation.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
