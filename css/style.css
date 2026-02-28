@@ -1,0 +1,744 @@
+/* ============================================================
+   化学プラント経営ゲーム - スタイルシート
+   Industrial dark theme
+   ============================================================ */
+
+:root {
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --bg-card: #1c2128;
+  --border: #30363d;
+  --border-light: #484f58;
+  --text-primary: #e6edf3;
+  --text-secondary: #8b949e;
+  --text-muted: #6e7681;
+  --accent: #f0a500;
+  --accent-dim: #8b6914;
+  --green: #3fb950;
+  --green-dim: #1a4731;
+  --red: #f85149;
+  --red-dim: #4a1c1c;
+  --blue: #58a6ff;
+  --cyan: #39d2c0;
+  --orange: #d29922;
+  --purple: #bc8cff;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans JP", Helvetica, Arial, sans-serif;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+#app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 12px;
+}
+
+/* ---- Header ---- */
+#game-header {
+  padding: 16px 0 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+#game-header h1 {
+  font-size: 1.1rem;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+  margin-bottom: 10px;
+}
+
+#status-bar {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-item .label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-item .value {
+  font-family: "SF Mono", "Fira Code", "Fira Mono", Menlo, monospace;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.status-item .value.money {
+  color: var(--green);
+}
+
+.status-item .value.money.negative {
+  color: var(--red);
+}
+
+/* ---- Tab Navigation ---- */
+#tab-nav {
+  display: flex;
+  gap: 2px;
+  padding-top: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 18px;
+  font-size: 0.88rem;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  transition: color 0.15s, border-color 0.15s;
+  font-family: inherit;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ---- Main Content ---- */
+#main-content {
+  min-height: 400px;
+  padding: 16px 0;
+}
+
+.tab-content {
+  display: none;
+}
+
+.tab-content.active {
+  display: block;
+}
+
+/* ---- Section Headers ---- */
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.section-header h2 {
+  font-size: 1rem;
+  color: var(--text-primary);
+}
+
+.section-title {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 16px 0 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+
+.section-title:first-child {
+  margin-top: 0;
+}
+
+/* ---- Cards ---- */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.card-header h3 {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.card-detail {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.card-detail span.chem-name {
+  color: var(--cyan);
+}
+
+.card-detail span.amount {
+  color: var(--text-primary);
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.card-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* ---- Status Badges ---- */
+.badge {
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+
+.badge-active {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.badge-idle {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+}
+
+.badge-error {
+  background: var(--red-dim);
+  color: var(--red);
+}
+
+/* ---- Tables ---- */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.data-table th {
+  text-align: left;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+
+.data-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--bg-tertiary);
+  vertical-align: middle;
+}
+
+.data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.data-table .num {
+  font-family: "SF Mono", "Fira Code", monospace;
+  text-align: right;
+}
+
+.data-table .price {
+  color: var(--accent);
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.trend-up { color: var(--red); }
+.trend-down { color: var(--green); }
+.trend-flat { color: var(--text-muted); }
+
+.trend-up-sell { color: var(--green); }
+.trend-down-sell { color: var(--red); }
+
+/* ---- Demand Bar ---- */
+.demand-bar {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.demand-segment {
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--bg-tertiary);
+}
+
+.demand-segment.filled-1 { background: var(--red); }
+.demand-segment.filled-2 { background: var(--orange); }
+.demand-segment.filled-3 { background: #c9a227; }
+.demand-segment.filled-4 { background: var(--green); }
+.demand-segment.filled-5 { background: var(--cyan); }
+
+/* ---- Trade Controls ---- */
+.trade-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.qty-input {
+  width: 48px;
+  text-align: center;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 4px;
+  padding: 4px;
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.82rem;
+}
+
+.qty-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Remove number input spinners */
+.qty-input::-webkit-outer-spin-button,
+.qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.qty-input[type=number] { -moz-appearance: textfield; }
+
+/* ---- Buttons ---- */
+.btn {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--border);
+  border-color: var(--border-light);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-accent {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.btn-accent:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--bg-primary);
+}
+
+.btn-buy {
+  background: var(--green-dim);
+  border-color: #2ea043;
+  color: var(--green);
+}
+
+.btn-buy:hover:not(:disabled) {
+  background: #2ea043;
+  color: #fff;
+}
+
+.btn-sell {
+  background: #2a2000;
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+.btn-sell:hover:not(:disabled) {
+  background: var(--orange);
+  color: var(--bg-primary);
+}
+
+.btn-danger {
+  color: var(--red);
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--red-dim);
+  border-color: var(--red);
+}
+
+.btn-sm {
+  padding: 2px 6px;
+  font-size: 0.75rem;
+}
+
+.btn-qty {
+  padding: 3px 7px;
+  font-size: 0.78rem;
+  min-width: 28px;
+}
+
+/* ---- Action Bar ---- */
+#action-bar {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+  text-align: center;
+}
+
+#btn-end-turn {
+  background: linear-gradient(135deg, var(--accent-dim), #5a3e00);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  padding: 10px 40px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.05em;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+
+#btn-end-turn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(240, 165, 0, 0.3);
+}
+
+/* ---- Game Log ---- */
+#game-log {
+  border-top: 1px solid var(--border);
+  padding: 8px 0 16px;
+}
+
+#log-header {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+}
+
+#log-content {
+  max-height: 150px;
+  overflow-y: auto;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.log-entry {
+  padding: 2px 0;
+  border-bottom: 1px solid var(--bg-secondary);
+}
+
+.log-entry .log-turn {
+  color: var(--text-muted);
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.72rem;
+  margin-right: 6px;
+}
+
+.log-entry.log-good { color: var(--green); }
+.log-entry.log-bad { color: var(--red); }
+.log-entry.log-info { color: var(--blue); }
+.log-entry.log-warn { color: var(--orange); }
+
+/* ---- Modal ---- */
+#modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  backdrop-filter: blur(2px);
+}
+
+#modal-overlay.hidden {
+  display: none;
+}
+
+#modal {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+#modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+
+#modal-header h2 {
+  font-size: 1rem;
+  color: var(--accent);
+}
+
+#modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.3rem;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+#modal-close:hover {
+  color: var(--text-primary);
+}
+
+#modal-body {
+  padding: 18px;
+}
+
+/* ---- Modal specific: Process cards ---- */
+.process-option {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px;
+  margin-bottom: 10px;
+}
+
+.process-option h3 {
+  font-size: 0.92rem;
+  color: var(--cyan);
+  margin-bottom: 4px;
+}
+
+.process-option .desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.process-io {
+  display: flex;
+  gap: 20px;
+  font-size: 0.82rem;
+  margin-bottom: 8px;
+}
+
+.process-io .io-label {
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.process-io .io-items {
+  color: var(--text-primary);
+}
+
+.process-cost {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+
+.process-cost span {
+  color: var(--accent);
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+/* ---- Turn Summary (in modal) ---- */
+.summary-section {
+  margin-bottom: 14px;
+}
+
+.summary-section h3 {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--border);
+}
+
+.summary-item {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85rem;
+  padding: 2px 0;
+}
+
+.summary-item .pos { color: var(--green); }
+.summary-item .neg { color: var(--red); }
+.summary-item .neutral { color: var(--text-secondary); }
+
+.summary-total {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.95rem;
+  font-weight: 700;
+  padding: 8px 0;
+  margin-top: 8px;
+  border-top: 2px solid var(--border);
+}
+
+/* ---- Research ---- */
+.research-progress {
+  margin: 12px 0;
+}
+
+.progress-bar-bg {
+  background: var(--bg-tertiary);
+  border-radius: 4px;
+  height: 20px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progress-bar-fill {
+  background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+  height: 100%;
+  transition: width 0.3s;
+  border-radius: 3px;
+}
+
+.progress-text {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.research-invest-btns {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.unlock-preview {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-top: 12px;
+}
+
+.unlock-preview h4 {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.unlock-preview .unlock-item {
+  color: var(--cyan);
+  font-size: 0.88rem;
+}
+
+.unlock-preview .unlock-desc {
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  margin-left: 12px;
+}
+
+/* ---- Empty state ---- */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+/* ---- Inventory value ---- */
+.inventory-total {
+  text-align: right;
+  padding: 10px 8px;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}
+
+.inventory-total span {
+  color: var(--accent);
+  font-weight: 600;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 600px) {
+  #status-bar {
+    gap: 10px;
+  }
+
+  .status-item .label {
+    font-size: 0.68rem;
+  }
+
+  .status-item .value {
+    font-size: 0.85rem;
+  }
+
+  .trade-controls {
+    flex-wrap: wrap;
+  }
+
+  .data-table {
+    font-size: 0.78rem;
+  }
+
+  .data-table th, .data-table td {
+    padding: 6px 4px;
+  }
+}
+
+/* ---- Scrollbar ---- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
