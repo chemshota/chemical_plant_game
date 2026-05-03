@@ -36,70 +36,130 @@ function renderTab(tab) {
 
 function renderPlants() {
   const container = document.getElementById('tab-plants');
-  let html = '';
+  let html = '<div class="section-header"><h2>プラント管理</h2></div>';
+  for (const [processId, process] of Object.entries(PROCESSES)) {
+    html += renderProcessGroup(processId, process);
+  }
+  container.innerHTML = html;
+}
 
-  html += '<div class="section-header">';
-  html += '<h2>プラント一覧</h2>';
-  html += '<button class="btn btn-accent" onclick="showBuildModal()">+ 新規建設</button>';
-  html += '</div>';
+function renderProcessGroup(processId, process) {
+  const isLocked    = process.techRequired > state.techLevel;
+  const plants      = state.plants.filter(p => p.processId === processId);
+  const totalCount  = plants.length;
+  const activeCount = plants.filter(p => p.active).length;
+  const allAutoBuy  = totalCount > 0 && plants.every(p => p.autoBuy);
+  const scale       = state.processScale[processId] || 1;
+  const scaleMult   = getScaleMultipliers(scale);
+  const mods        = getModifiers();
 
-  if (state.plants.length === 0) {
-    html += '<p class="empty-state">プラントがありません。<br>「新規建設」から製造プラントを建設してください。</p>';
-  } else {
-    for (const plant of state.plants) {
-      const process = PROCESSES[plant.processId];
-      const statusClass = plant.active ? 'badge-active' : 'badge-idle';
-      const statusText = plant.active ? '稼働中' : '停止中';
+  // スケール + 研究効果を反映した実効 I/O・コスト（/基）
+  const inputReduction = mods.inputReduction[processId] || {};
+  const outputBonus    = mods.outputBonus[processId] || {};
+  const globalDisc  = mods.operatingCostDiscount;
+  const processDisc = mods.processOpCostDiscount[processId] || 0;
+  const totalDisc   = Math.min(1, globalDisc + processDisc);
 
-      // 入力材料の充足チェック
-      let inputStatus = '';
-      if (plant.active) {
-        let hasAll = true;
-        for (const [chemId, amount] of Object.entries(process.inputs)) {
-          if ((state.inventory[chemId] || 0) < amount) {
-            hasAll = false;
-            break;
-          }
-        }
-        if (!hasAll) {
-          inputStatus = '<span class="badge badge-error">原料不足</span>';
-        }
-      }
+  const effectiveInputs = {};
+  for (const [c, a] of Object.entries(process.inputs))
+    effectiveInputs[c] = Math.max(0, a - (inputReduction[c] || 0)) * scaleMult.input;
 
-      html += `<div class="card">`;
-      html += `<div class="card-header">`;
-      html += `<h3>${process.name} #${plant.id}</h3>`;
-      html += `<div><span class="badge ${statusClass}">${statusText}</span> ${inputStatus}</div>`;
+  const effectiveOutputs = {};
+  for (const [c, a] of Object.entries(process.outputs))
+    effectiveOutputs[c] = (a + (outputBonus[c] || 0)) * scaleMult.output;
+
+  const effectiveOpCost = Math.round(process.operatingCost * (1 - totalDisc) * scaleMult.opCost);
+
+  const inputCost = Object.entries(effectiveInputs)
+    .reduce((s, [c, a]) => s + (state.market.prices[c] || 0) * a, 0);
+  const revenue = Object.entries(effectiveOutputs)
+    .reduce((s, [c, a]) => s + (state.market.prices[c] || 0) * a, 0);
+  const profitPerUnit = Math.round(revenue - inputCost - effectiveOpCost);
+
+  const canScaleUp  = scale < 3;
+  const scaleUpCost = canScaleUp
+    ? Math.round(process.buildCost * (scale === 1 ? 1.0 : 1.5) * Math.max(1, totalCount))
+    : 0;
+
+  let html = `<div class="card${isLocked ? ' card-locked' : ''}">`;
+
+  // ── ヘッダー ──
+  html += `<div class="card-header">`;
+  html += `<div class="plant-group-title"><h3>${process.name}</h3>`;
+  if (totalCount > 0) {
+    html += `<span class="plant-count-badge">${totalCount}基</span>`;
+    if (scale > 1) html += `<span class="badge badge-scale">規模Lv${scale}</span>`;
+  }
+  html += `</div>`;
+  if (isLocked) {
+    html += `<span class="badge badge-locked">技術Lv${process.techRequired}で解放</span>`;
+  } else if (totalCount > 0) {
+    const cls = activeCount > 0 ? 'badge-active' : 'badge-idle';
+    html += `<span class="badge ${cls}">${activeCount}基稼働 / ${totalCount}基</span>`;
+  }
+  html += `</div>`;
+  html += `<div class="card-detail">${process.desc}</div>`;
+
+  if (!isLocked) {
+    if (totalCount > 0) {
+      // ── I/O（スケール適用済み / 基）──
+      html += `<div class="plant-io-row">`;
+      html += `<div class="plant-io-section"><span class="io-label">入力/基</span> ${formatIO(effectiveInputs)}</div>`;
+      html += `<div class="plant-io-section"><span class="io-label">出力/基</span> ${formatIO(effectiveOutputs)}</div>`;
       html += `</div>`;
 
-      // 入出力
-      html += `<div class="card-detail">`;
-      html += `入力: ${formatIO(process.inputs)}`;
-      html += `</div>`;
-      html += `<div class="card-detail">`;
-      html += `出力: ${formatIO(process.outputs)}`;
-      html += `</div>`;
-      html += `<div class="card-detail">`;
-      html += `運転費: <span class="amount">¥${formatNum(process.operatingCost)}</span>/期`;
+      // ── 運転費・推定利益 ──
+      html += `<div class="plant-financials">`;
+      html += `運転費: <span class="amount">¥${formatNum(effectiveOpCost)}</span>/基`;
+      const pClass = profitPerUnit >= 0 ? 'profit-pos' : 'profit-neg';
+      html += ` ／ 推定利益: <span class="${pClass}">${profitPerUnit >= 0 ? '+' : ''}¥${formatNum(profitPerUnit)}/基</span>`;
       html += `</div>`;
 
-      // アクション
+      // ── コントロール行1: 稼働/停止 + 自動購入 ──
       html += `<div class="card-actions">`;
-      html += `<button class="btn btn-sm" onclick="handleTogglePlant(${plant.id})">`;
-      html += plant.active ? '停止' : '稼働';
-      html += `</button>`;
-      html += `<button class="btn btn-sm btn-danger" onclick="handleDemolish(${plant.id})">解体</button>`;
+      if (activeCount < totalCount)
+        html += `<button class="btn btn-sm" onclick="handleSetGroupActive('${processId}',true)">全稼働</button>`;
+      if (activeCount > 0)
+        html += `<button class="btn btn-sm" onclick="handleSetGroupActive('${processId}',false)">全停止</button>`;
+      const abClass = allAutoBuy ? 'btn-autobuy-on' : '';
+      html += `<button class="btn btn-sm ${abClass}" onclick="handleSetGroupAutoBuy('${processId}',${!allAutoBuy})">`;
+      html += `自動購入: ${allAutoBuy ? 'ON' : 'OFF'}</button>`;
       html += `</div>`;
+
+      // ── コントロール行2: ナンバリングアップ + スケールアップ ──
+      html += `<div class="card-actions" style="margin-top:4px;">`;
+      const canBuild = state.money >= process.buildCost;
+      html += `<button class="btn btn-sm btn-accent" onclick="handleBuild('${processId}')" ${canBuild ? '' : 'disabled'}>`;
+      html += `+1基 (¥${formatNum(process.buildCost)})</button>`;
+      html += `<button class="btn btn-sm btn-danger" onclick="handleDemolishOne('${processId}')">1基 解体</button>`;
+      if (canScaleUp) {
+        html += `<button class="btn btn-sm btn-scale" onclick="handleScaleUp('${processId}')" ${state.money >= scaleUpCost ? '' : 'disabled'}>`;
+        html += `規模Lv${scale}→${scale+1} (¥${formatNum(scaleUpCost)})</button>`;
+      } else {
+        html += `<span class="badge badge-maxed" style="font-size:0.7rem;padding:3px 8px;">規模MAX</span>`;
+      }
+      html += `</div>`;
+
+    } else {
+      // ── 未建設: 初回建設 ──
+      html += `<div class="card-detail">入力: ${formatIOText(process.inputs)} → 出力: ${formatIOText(process.outputs)}</div>`;
+      html += `<div class="card-detail">建設費: <span class="amount">¥${formatNum(process.buildCost)}</span> / 運転費: <span class="amount">¥${formatNum(process.operatingCost)}</span>/期</div>`;
+      const canBuild = state.money >= process.buildCost;
+      html += `<div class="card-actions">`;
+      html += `<button class="btn btn-accent" onclick="handleBuild('${processId}')" ${canBuild ? '' : 'disabled'}>`;
+      html += `建設 (¥${formatNum(process.buildCost)})</button>`;
+      if (!canBuild) html += `<span style="font-size:0.78rem;color:var(--red);">資金不足</span>`;
       html += `</div>`;
     }
   }
 
-  container.innerHTML = html;
+  html += `</div>`;
+  return html;
 }
 
 function formatIO(io) {
   return Object.entries(io)
-    .map(([id, amt]) => `<span class="chem-name">${CHEMICALS[id].name}</span> <span class="amount">${amt}t</span>`)
+    .map(([id, amt]) => `<span class="chem-name">${CHEMICALS[id].name}</span> <span class="amount">${formatQty(amt)}t</span>`)
     .join(' + ');
 }
 
@@ -289,8 +349,22 @@ function renderResearch() {
   const container = document.getElementById('tab-research');
   let html = '';
 
-  html += '<div class="section-header"><h2>研究開発</h2></div>';
+  // ---- セクション1: プロセス解放技術 ----
+  html += '<div class="section-title">プロセス解放技術</div>';
+  html += renderProcessUnlockSection();
 
+  // ---- セクション2: 工程改善研究 ----
+  html += '<div class="section-title">工程改善研究</div>';
+  html += renderModifierSummary();
+  for (const [catId, cat] of Object.entries(RESEARCH_CATEGORIES)) {
+    html += renderCategoryCard(catId, cat);
+  }
+
+  container.innerHTML = html;
+}
+
+function renderProcessUnlockSection() {
+  let html = '';
   html += `<div class="card">`;
   html += `<div class="card-header"><h3>現在の技術レベル: ${state.techLevel}</h3></div>`;
 
@@ -303,19 +377,16 @@ function renderResearch() {
     html += `</div>`;
 
     html += `<div class="research-invest-btns">`;
-    const amounts = [100, 500, 1000];
-    for (const amt of amounts) {
+    for (const amt of [100, 500, 1000]) {
       const disabled = state.money < amt ? 'disabled' : '';
-      html += `<button class="btn btn-accent" onclick="handleResearch(${amt})" ${disabled}>¥${formatNum(amt)} 投資</button>`;
+      html += `<button class="btn btn-accent" onclick="handleResearch(${amt})" ${disabled}>¥${formatNum(amt)}</button>`;
     }
-    // 必要額ぴったり投資
     const remaining = needed - state.researchProgress;
-    if (remaining > 0 && remaining <= state.money) {
-      html += `<button class="btn btn-accent" onclick="handleResearch(${remaining})">¥${formatNum(remaining)} （残額全部）</button>`;
+    if (remaining > 0 && remaining <= state.money && remaining > 1000) {
+      html += `<button class="btn btn-accent" onclick="handleResearch(${remaining})">¥${formatNum(remaining)}（全額）</button>`;
     }
     html += `</div>`;
 
-    // 次のレベルで解放されるもの
     const nextTech = TECH_LEVELS.find(t => t.level === state.techLevel + 1);
     if (nextTech && nextTech.unlocks.length > 0) {
       html += `<div class="unlock-preview">`;
@@ -333,21 +404,106 @@ function renderResearch() {
   }
 
   html += `</div>`;
+  return html;
+}
 
-  // 解放済みプロセス一覧
-  html += '<div class="section-title">解放済みプロセス</div>';
-  for (const [id, process] of Object.entries(PROCESSES)) {
-    if (process.techRequired > state.techLevel) continue;
-    html += `<div class="card">`;
-    html += `<div class="card-header"><h3>${process.name}</h3><span class="badge badge-active">Lv${process.techRequired}</span></div>`;
-    html += `<div class="card-detail">${process.desc}</div>`;
-    html += `<div class="card-detail">入力: ${formatIO(process.inputs)}</div>`;
-    html += `<div class="card-detail">出力: ${formatIO(process.outputs)}</div>`;
-    html += `<div class="card-detail">建設費: <span class="amount">¥${formatNum(process.buildCost)}</span> / 運転費: <span class="amount">¥${formatNum(process.operatingCost)}</span>/期</div>`;
+function renderModifierSummary() {
+  const mods = getModifiers();
+  const badges = [];
+
+  if (mods.rawPriceDiscount > 0) {
+    badges.push(`原料割引 -${Math.round(mods.rawPriceDiscount * 100)}%`);
+  }
+  if (mods.operatingCostDiscount > 0) {
+    badges.push(`運転費割引 -${Math.round(mods.operatingCostDiscount * 100)}%`);
+  }
+  for (const [pid, bonus] of Object.entries(mods.outputBonus)) {
+    const pname = PROCESSES[pid]?.name || pid;
+    for (const [chem, amt] of Object.entries(bonus)) {
+      badges.push(`${pname} ${CHEMICALS[chem].name} +${amt}t`);
+    }
+  }
+  for (const [pid, disc] of Object.entries(mods.processOpCostDiscount)) {
+    const pname = PROCESSES[pid]?.name || pid;
+    badges.push(`${pname}運転費 -${Math.round(disc * 100)}%`);
+  }
+  for (const [pid, reductions] of Object.entries(mods.inputReduction)) {
+    const pname = PROCESSES[pid]?.name || pid;
+    for (const [chem, amt] of Object.entries(reductions)) {
+      badges.push(`${pname} ${CHEMICALS[chem].name}消費 -${amt}t`);
+    }
+  }
+
+  let html = '<div class="research-summary-bar">';
+  if (badges.length === 0) {
+    html += '<span class="mod-label">現在の工程改善効果なし</span>';
+  } else {
+    html += '<span class="mod-label">現在の効果:</span>';
+    for (const b of badges) {
+      html += `<span class="mod-badge">${b}</span>`;
+    }
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderCategoryCard(catId, cat) {
+  const currentLv = state.researchLevels[catId] || 0;
+  const maxLv = cat.levels.length;
+  const nextLvDef = cat.levels.find(l => l.level === currentLv + 1);
+  const isLocked = state.techLevel < cat.unlockTechLevel;
+  const isMaxed  = currentLv >= maxLv;
+  const progress = state.categoryResearchProgress[catId] || 0;
+
+  let html = `<div class="card${isLocked ? ' card-locked' : ''}">`;
+
+  html += `<div class="card-header">`;
+  html += `<h3>${cat.name}</h3>`;
+  if (isLocked) {
+    html += `<span class="badge badge-locked">技術Lv${cat.unlockTechLevel}で解放</span>`;
+  } else if (isMaxed) {
+    html += `<span class="badge badge-maxed">最大Lv達成</span>`;
+  } else {
+    html += `<span class="badge badge-research">Lv${currentLv} / ${maxLv}</span>`;
+  }
+  html += `</div>`;
+
+  html += `<div class="card-detail">${cat.desc}</div>`;
+
+  html += `<div class="research-levels-list">`;
+  for (const lvDef of cat.levels) {
+    const done   = lvDef.level <= currentLv;
+    const isNext = lvDef.level === currentLv + 1;
+    const cls    = done ? 'rlv-done' : (isNext ? 'rlv-next' : 'rlv-future');
+    html += `<div class="research-level-row ${cls}">`;
+    html += `<span class="rlv-label">Lv${lvDef.level}</span>`;
+    html += `<span class="rlv-effect">${lvDef.desc}</span>`;
+    html += `<span class="rlv-cost">${done ? '✓ 達成' : '¥' + formatNum(lvDef.cost)}</span>`;
+    html += `</div>`;
+  }
+  html += `</div>`;
+
+  if (!isLocked && !isMaxed && nextLvDef) {
+    const pct = Math.min(100, Math.floor((progress / nextLvDef.cost) * 100));
+    html += `<div class="research-progress">`;
+    html += `<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`;
+    html += `<div class="progress-text">${formatNum(progress)} / ${formatNum(nextLvDef.cost)} (${pct}%)</div>`;
+    html += `</div>`;
+
+    html += `<div class="research-invest-btns">`;
+    for (const amt of [500, 1000, 3000]) {
+      const disabled = state.money < amt ? 'disabled' : '';
+      html += `<button class="btn btn-accent btn-sm" onclick="handleCategoryResearch('${catId}', ${amt})" ${disabled}>¥${formatNum(amt)}</button>`;
+    }
+    const remaining = nextLvDef.cost - progress;
+    if (remaining > 0 && remaining <= state.money && remaining > 3000) {
+      html += `<button class="btn btn-accent btn-sm" onclick="handleCategoryResearch('${catId}', ${remaining})">¥${formatNum(remaining)}（全額）</button>`;
+    }
     html += `</div>`;
   }
 
-  container.innerHTML = html;
+  html += `</div>`;
+  return html;
 }
 
 function formatIOText(io) {
@@ -424,29 +580,48 @@ function showBuildModal() {
 function showTurnSummary(results) {
   let html = '';
 
-  // 生産結果
-  html += '<div class="summary-section">';
-  html += '<h3>生産結果</h3>';
+  // 自動購入結果
+  if (results.autoBuyResults && results.autoBuyResults.length > 0) {
+    html += '<div class="summary-section"><h3>自動購入</h3>';
+    for (const r of results.autoBuyResults) {
+      html += `<div class="summary-item">`;
+      html += `<span>${CHEMICALS[r.chemId].name} ${r.qty}t</span>`;
+      html += r.success
+        ? `<span class="neutral">購入済</span>`
+        : `<span class="neg">失敗: ${r.msg}</span>`;
+      html += `</div>`;
+    }
+    html += '</div>';
+  }
 
+  // 生産結果（プロセス種別ごとに集約）
+  html += '<div class="summary-section"><h3>生産結果</h3>';
   if (results.productionResults.length === 0) {
     html += '<div class="summary-item"><span class="neutral">プラントなし</span></div>';
   } else {
+    // 成功分を processId 別に集約
+    const successMap = {};
     for (const r of results.productionResults) {
-      const process = PROCESSES[r.processId];
-      if (r.success) {
-        const outputStr = Object.entries(r.outputs)
-          .map(([id, amt]) => `${CHEMICALS[id].name} ${amt}t`)
-          .join(', ');
-        html += `<div class="summary-item">`;
-        html += `<span>${process.name} #${r.plantId}</span>`;
-        html += `<span class="pos">${outputStr} 生産</span>`;
-        html += `</div>`;
-      } else {
-        html += `<div class="summary-item">`;
-        html += `<span>${process.name} #${r.plantId}</span>`;
-        html += `<span class="neg">${r.reason}</span>`;
-        html += `</div>`;
-      }
+      if (!r.success) continue;
+      if (!successMap[r.processId]) successMap[r.processId] = { count: 0, outputs: {} };
+      successMap[r.processId].count++;
+      for (const [c, a] of Object.entries(r.outputs))
+        successMap[r.processId].outputs[c] = (successMap[r.processId].outputs[c] || 0) + a;
+    }
+    for (const [pid, data] of Object.entries(successMap)) {
+      const pname = PROCESSES[pid].name;
+      const outStr = Object.entries(data.outputs)
+        .map(([c, a]) => `${CHEMICALS[c].name} ${formatQty(a)}t`).join(', ');
+      html += `<div class="summary-item"><span>${pname} ×${data.count}基</span><span class="pos">${outStr}</span></div>`;
+    }
+    // 失敗分
+    const failMap = {};
+    for (const r of results.productionResults) {
+      if (r.success || r.reason === '停止中') continue;
+      failMap[r.processId] = (failMap[r.processId] || 0) + 1;
+    }
+    for (const [pid, cnt] of Object.entries(failMap)) {
+      html += `<div class="summary-item"><span>${PROCESSES[pid].name} ×${cnt}基</span><span class="neg">原料不足</span></div>`;
     }
   }
   html += '</div>';
@@ -513,77 +688,94 @@ function handleSell(chemId) {
 
 function handleBuild(processId) {
   const result = buildPlant(processId);
-  if (result.success) {
-    addLog(result.msg, 'log-info');
-    hideModal();
-  } else {
-    addLog(result.msg, 'log-bad');
-  }
+  addLog(result.msg, result.success ? 'log-info' : 'log-bad');
   render();
 }
 
-function handleDemolish(plantId) {
-  const plant = state.plants.find(p => p.id === plantId);
-  if (!plant) return;
-  const process = PROCESSES[plant.processId];
-
-  // 確認モーダル
-  let html = `<p>${process.name} #${plantId} を解体しますか？</p>`;
-  html += `<p style="color:var(--text-secondary);font-size:0.85rem;">建設費の20%が払い戻されます。</p>`;
+function handleDemolishOne(processId) {
+  const plants = state.plants.filter(p => p.processId === processId);
+  if (plants.length === 0) return;
+  const process = PROCESSES[processId];
+  const refund = Math.floor(process.buildCost * 0.2);
+  let html = `<p>${process.name} を1基解体しますか？</p>`;
+  html += `<p style="color:var(--text-secondary);font-size:0.85rem;">建設費の20%が払い戻されます（¥${formatNum(refund)}）</p>`;
   html += `<div style="display:flex;gap:8px;margin-top:14px;justify-content:center;">`;
-  html += `<button class="btn btn-danger" onclick="confirmDemolish(${plantId})">解体する</button>`;
+  html += `<button class="btn btn-danger" onclick="confirmDemolishOne('${processId}')">解体する</button>`;
   html += `<button class="btn" onclick="hideModal()">キャンセル</button>`;
   html += `</div>`;
-
   showModal('プラント解体', html);
 }
 
-function confirmDemolish(plantId) {
-  const result = demolishPlant(plantId);
-  if (result.success) {
-    addLog(result.msg, 'log-warn');
-  } else {
-    addLog(result.msg, 'log-bad');
-  }
+function confirmDemolishOne(processId) {
+  const plants = state.plants.filter(p => p.processId === processId);
+  if (plants.length === 0) { hideModal(); render(); return; }
+  const result = demolishPlant(plants[plants.length - 1].id);
+  addLog(result.msg, result.success ? 'log-warn' : 'log-bad');
   hideModal();
   render();
 }
 
-function handleTogglePlant(plantId) {
-  togglePlant(plantId);
-  const plant = state.plants.find(p => p.id === plantId);
-  if (plant) {
-    const process = PROCESSES[plant.processId];
-    const status = plant.active ? '稼働' : '停止';
-    addLog(`${process.name} #${plantId} を${status}に変更`, 'log-info');
-  }
+function handleSetGroupActive(processId, active) {
+  setGroupActive(processId, active);
+  addLog(`${PROCESSES[processId].name} 全基を${active ? '稼働' : '停止'}`, 'log-info');
+  render();
+}
+
+function handleSetGroupAutoBuy(processId, autoBuy) {
+  setGroupAutoBuy(processId, autoBuy);
+  addLog(`${PROCESSES[processId].name} 自動購入 ${autoBuy ? 'ON' : 'OFF'}`, 'log-info');
+  render();
+}
+
+function handleScaleUp(processId) {
+  const result = scaleUpProcess(processId);
+  addLog(result.msg, result.success ? 'log-info' : 'log-bad');
   render();
 }
 
 function handleResearch(amount) {
   const result = investResearch(amount);
-  if (result.success) {
-    addLog(result.msg, 'log-info');
-  } else {
-    addLog(result.msg, 'log-bad');
-  }
+  addLog(result.msg, result.success ? 'log-info' : 'log-bad');
+  render();
+}
+
+function handleCategoryResearch(catId, amount) {
+  const result = investCategoryResearch(catId, amount);
+  addLog(result.msg, result.success ? 'log-info' : 'log-bad');
   render();
 }
 
 function handleEndTurn() {
   const results = processTurn();
 
-  // ログに生産結果を記録
-  for (const r of results.productionResults) {
-    const process = PROCESSES[r.processId];
+  // 自動購入ログ
+  for (const r of results.autoBuyResults || []) {
     if (r.success) {
-      const outputStr = Object.entries(r.outputs)
-        .map(([id, amt]) => `${CHEMICALS[id].name} ${amt}t`)
-        .join(', ');
-      addLog(`${process.name} #${r.plantId}: ${outputStr} 生産`, 'log-good');
-    } else if (r.reason !== '停止中') {
-      addLog(`${process.name} #${r.plantId}: ${r.reason}`, 'log-warn');
+      addLog(`[自動購入] ${r.msg}`, 'log-info');
+    } else {
+      addLog(`[自動購入失敗] ${CHEMICALS[r.chemId].name} ${r.qty}t — ${r.msg}`, 'log-warn');
     }
+  }
+
+  // 生産結果ログ（プロセス種別ごとに集約）
+  const logSuccess = {};
+  const logFail = {};
+  for (const r of results.productionResults) {
+    if (r.success) {
+      if (!logSuccess[r.processId]) logSuccess[r.processId] = { count: 0, outputs: {} };
+      logSuccess[r.processId].count++;
+      for (const [c, a] of Object.entries(r.outputs))
+        logSuccess[r.processId].outputs[c] = (logSuccess[r.processId].outputs[c] || 0) + a;
+    } else if (r.reason !== '停止中') {
+      logFail[r.processId] = (logFail[r.processId] || 0) + 1;
+    }
+  }
+  for (const [pid, d] of Object.entries(logSuccess)) {
+    const outStr = Object.entries(d.outputs).map(([c, a]) => `${CHEMICALS[c].name} ${formatQty(a)}t`).join(', ');
+    addLog(`${PROCESSES[pid].name} ×${d.count}基: ${outStr} 生産`, 'log-good');
+  }
+  for (const [pid, cnt] of Object.entries(logFail)) {
+    addLog(`${PROCESSES[pid].name} ×${cnt}基: 原料不足`, 'log-warn');
   }
 
   // サマリー表示

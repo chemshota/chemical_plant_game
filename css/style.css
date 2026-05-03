@@ -725,6 +725,171 @@ body {
   }
 }
 
+/* ---- Plant group card ---- */
+.plant-group-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plant-count-badge {
+  background: var(--bg-tertiary);
+  color: var(--text-primary);
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.badge-scale {
+  background: #1a2060;
+  color: var(--blue);
+  font-size: 0.72rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.plant-io-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.plant-io-section {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.io-label {
+  font-size: 0.70rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 4px;
+}
+
+.plant-financials {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin: 4px 0 8px;
+}
+
+.profit-pos { color: var(--green); font-family: "SF Mono", "Fira Code", monospace; }
+.profit-neg { color: var(--red);   font-family: "SF Mono", "Fira Code", monospace; }
+
+/* ---- Scale-up button ---- */
+.btn-scale {
+  background: #1a1a40;
+  border-color: var(--blue);
+  color: var(--blue);
+}
+
+.btn-scale:hover:not(:disabled) {
+  background: var(--blue);
+  color: var(--bg-primary);
+}
+
+/* ---- Auto-buy button ---- */
+.btn-autobuy-on {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+.btn-autobuy-on:hover:not(:disabled) {
+  background: var(--green);
+  color: var(--bg-primary);
+}
+
+.strikethrough {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+/* ---- Category Research Cards ---- */
+.research-levels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 8px 0;
+}
+
+.research-level-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.rlv-done   { color: var(--text-muted); background: var(--bg-tertiary); }
+.rlv-next   { color: var(--text-primary); background: var(--accent-dim); border: 1px solid var(--accent); }
+.rlv-future { color: var(--text-secondary); }
+
+.rlv-label {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.75rem;
+  width: 28px;
+  flex-shrink: 0;
+}
+
+.rlv-done .rlv-label   { color: var(--green); }
+.rlv-next .rlv-label   { color: var(--accent); }
+.rlv-future .rlv-label { color: var(--text-muted); }
+
+.rlv-effect { flex: 1; }
+
+.rlv-cost {
+  font-family: "SF Mono", "Fira Code", monospace;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+}
+
+.rlv-done .rlv-cost   { color: var(--green); }
+.rlv-next .rlv-cost   { color: var(--accent); }
+.rlv-future .rlv-cost { color: var(--text-muted); }
+
+.card-locked { opacity: 0.55; }
+
+.badge-locked   { background: var(--bg-tertiary); color: var(--text-muted); }
+.badge-research { background: #1a2a3a; color: var(--blue); }
+.badge-maxed    { background: var(--green-dim); color: var(--green); }
+
+/* 研究効果サマリーバー */
+.research-summary-bar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-bottom: 12px;
+  font-size: 0.82rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  color: var(--text-muted);
+}
+
+.research-summary-bar .mod-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-right: 2px;
+}
+
+.mod-badge {
+  background: var(--green-dim);
+  color: var(--green);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar {
   width: 6px;

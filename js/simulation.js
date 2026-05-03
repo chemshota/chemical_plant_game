@@ -10,11 +10,29 @@ let nextPlantId = 1;
 
 function createInitialState() {
   const s = {
-    money: 5000,
+    money: 15000,
     turn: 1,
     techLevel: 1,
     researchProgress: 0,
+    researchLevels: {
+      upstream:         0,
+      reaction:         0,
+      separation:       0,
+      electrochemistry: 0,
+    },
+    categoryResearchProgress: {
+      upstream:         0,
+      reaction:         0,
+      separation:       0,
+      electrochemistry: 0,
+    },
     plants: [],
+    processScale: {
+      contact:     1,
+      leblanc:     1,
+      solvay:      1,
+      chloralkali: 1,
+    },
     inventory: {},
     market: {
       prices: {},
@@ -101,11 +119,74 @@ function getCurrentEra() {
 }
 
 // ============================================================
+// 研究モディファイア
+// ============================================================
+
+function getModifiers() {
+  const mods = {
+    rawPriceDiscount:     0,
+    operatingCostDiscount: 0,
+    outputBonus:          {},
+    processOpCostDiscount: {},
+    inputReduction:       {},
+  };
+
+  for (const [catId, cat] of Object.entries(RESEARCH_CATEGORIES)) {
+    const achieved = state.researchLevels[catId] || 0;
+    if (achieved === 0) continue;
+
+    for (const lvDef of cat.levels) {
+      if (lvDef.level > achieved) break;
+      const eff = lvDef.effect;
+
+      if (eff.rawPriceDiscount !== undefined) {
+        mods.rawPriceDiscount = Math.max(mods.rawPriceDiscount, eff.rawPriceDiscount);
+      }
+      if (eff.operatingCostDiscount !== undefined) {
+        mods.operatingCostDiscount = Math.max(mods.operatingCostDiscount, eff.operatingCostDiscount);
+      }
+      if (eff.outputBonus) {
+        for (const [pid, bonus] of Object.entries(eff.outputBonus)) {
+          if (!mods.outputBonus[pid]) mods.outputBonus[pid] = {};
+          for (const [chem, amt] of Object.entries(bonus)) {
+            mods.outputBonus[pid][chem] = (mods.outputBonus[pid][chem] || 0) + amt;
+          }
+        }
+      }
+      if (eff.processOpCostDiscount) {
+        for (const [pid, disc] of Object.entries(eff.processOpCostDiscount)) {
+          mods.processOpCostDiscount[pid] = (mods.processOpCostDiscount[pid] || 0) + disc;
+        }
+      }
+      if (eff.inputReduction) {
+        for (const [pid, reductions] of Object.entries(eff.inputReduction)) {
+          if (!mods.inputReduction[pid]) mods.inputReduction[pid] = {};
+          for (const [chem, amt] of Object.entries(reductions)) {
+            mods.inputReduction[pid][chem] = (mods.inputReduction[pid][chem] || 0) + amt;
+          }
+        }
+      }
+    }
+  }
+
+  return mods;
+}
+
+// スケールLvに対応する倍率を返す
+// output効率ボーナスがスケールアップの利点
+function getScaleMultipliers(scale) {
+  if (scale === 2) return { input: 2,   output: 2.5, opCost: 1.8 };
+  if (scale === 3) return { input: 3,   output: 4.0, opCost: 2.5 };
+  return             { input: 1,   output: 1.0, opCost: 1.0 };
+}
+
+// ============================================================
 // 生産シミュレーション
 // ============================================================
 
 function runProduction() {
   const results = [];
+  const mods = getModifiers();
 
   for (const plant of state.plants) {
     if (!plant.active) {
@@ -114,11 +195,22 @@ function runProduction() {
     }
 
     const process = PROCESSES[plant.processId];
+    const inputReduction = mods.inputReduction[plant.processId] || {};
+    const outputBonus    = mods.outputBonus[plant.processId] || {};
+    const scale = state.processScale[plant.processId] || 1;
+    const scaleMult = getScaleMultipliers(scale);
+
+    // 実効入力量（inputReduction + スケール適用）
+    const effectiveInputs = {};
+    for (const [chemId, baseAmt] of Object.entries(process.inputs)) {
+      const reduction = inputReduction[chemId] || 0;
+      effectiveInputs[chemId] = Math.max(0, baseAmt - reduction) * scaleMult.input;
+    }
 
     // 入力材料チェック
     let canProduce = true;
-    let missingItems = [];
-    for (const [chemId, amount] of Object.entries(process.inputs)) {
+    const missingItems = [];
+    for (const [chemId, amount] of Object.entries(effectiveInputs)) {
       if ((state.inventory[chemId] || 0) < amount) {
         canProduce = false;
         missingItems.push(CHEMICALS[chemId].name);
@@ -127,23 +219,35 @@ function runProduction() {
 
     if (canProduce) {
       // 入力材料を消費
-      for (const [chemId, amount] of Object.entries(process.inputs)) {
+      for (const [chemId, amount] of Object.entries(effectiveInputs)) {
         state.inventory[chemId] -= amount;
         if (state.inventory[chemId] < 0.001) state.inventory[chemId] = 0;
       }
+
+      // 実効出力量（outputBonus + スケール適用）
+      const effectiveOutputs = {};
+      for (const [chemId, baseAmt] of Object.entries(process.outputs)) {
+        effectiveOutputs[chemId] = (baseAmt + (outputBonus[chemId] || 0)) * scaleMult.output;
+      }
+
       // 製品を生産
-      for (const [chemId, amount] of Object.entries(process.outputs)) {
+      for (const [chemId, amount] of Object.entries(effectiveOutputs)) {
         state.inventory[chemId] = (state.inventory[chemId] || 0) + amount;
       }
-      // 運転費
-      state.money -= process.operatingCost;
+
+      // 実効運転費（研究割引 + スケール適用）
+      const globalDisc  = mods.operatingCostDiscount;
+      const processDisc = mods.processOpCostDiscount[plant.processId] || 0;
+      const totalDisc   = Math.min(1, globalDisc + processDisc);
+      const actualCost  = Math.round(process.operatingCost * (1 - totalDisc) * scaleMult.opCost);
+      state.money -= actualCost;
 
       results.push({
         plantId: plant.id,
         processId: plant.processId,
         success: true,
-        outputs: { ...process.outputs },
-        cost: process.operatingCost,
+        outputs: effectiveOutputs,
+        cost: actualCost,
       });
     } else {
       results.push({
@@ -165,22 +269,26 @@ function runProduction() {
 function processTurn() {
   const prevMoney = state.money;
 
-  // 1. 生産実行
+  // 1. 自動購入
+  const autoBuyResults = runAutoBuy();
+
+  // 2. 生産実行
   const productionResults = runProduction();
 
-  // 2. 市場更新（次ターンの価格・需要）
+  // 3. 市場更新（次ターンの価格・需要）
   prevPrices = { ...state.market.prices };
   updateMarket();
 
-  // 3. ターン進行
+  // 4. ターン進行
   state.turn++;
 
-  // 4. 結果サマリー作成
+  // 5. 結果サマリー作成
   const totalCost = productionResults
     .filter(r => r.success)
     .reduce((sum, r) => sum + r.cost, 0);
 
   return {
+    autoBuyResults,
     productionResults,
     prevMoney,
     newMoney: state.money,
@@ -195,8 +303,12 @@ function processTurn() {
 
 function buyChemical(chemId, qty) {
   if (qty <= 0) return { success: false, msg: '数量が不正です' };
-  const price = state.market.prices[chemId];
-  const totalCost = price * qty;
+
+  const chem = CHEMICALS[chemId];
+  const basePrice = state.market.prices[chemId];
+  const discount = chem.isRaw ? getModifiers().rawPriceDiscount : 0;
+  const effectivePrice = Math.round(basePrice * (1 - discount));
+  const totalCost = effectivePrice * qty;
 
   if (state.money < totalCost) {
     return { success: false, msg: '資金不足です' };
@@ -205,10 +317,9 @@ function buyChemical(chemId, qty) {
   state.money -= totalCost;
   state.inventory[chemId] = (state.inventory[chemId] || 0) + qty;
 
-  return {
-    success: true,
-    msg: `${CHEMICALS[chemId].name} ${qty}t を ¥${formatNum(totalCost)} で購入`,
-  };
+  let msg = `${chem.name} ${qty}t を ¥${formatNum(totalCost)} で購入`;
+  if (discount > 0) msg += ` (調達割引 -${Math.round(discount * 100)}%)`;
+  return { success: true, msg };
 }
 
 function sellChemical(chemId, qty) {
@@ -261,6 +372,7 @@ function buildPlant(processId) {
     id: nextPlantId++,
     processId,
     active: true,
+    autoBuy: false,
     builtTurn: state.turn,
   };
   state.plants.push(plant);
@@ -292,6 +404,82 @@ function togglePlant(plantId) {
   const plant = state.plants.find(p => p.id === plantId);
   if (!plant) return;
   plant.active = !plant.active;
+}
+
+function toggleAutoBuy(plantId) {
+  const plant = state.plants.find(p => p.id === plantId);
+  if (!plant) return;
+  plant.autoBuy = !plant.autoBuy;
+}
+
+function runAutoBuy() {
+  const results = [];
+  const mods = getModifiers();
+
+  // 全auto-buyプラントの化学品別必要量を先に集計してから一括購入する
+  // (プラント単位でループすると、1基目の購入後に在庫が増え
+  //  2基目が「足りてる」と誤判定するバグを防ぐ)
+  const totalNeeded = {};
+  for (const plant of state.plants) {
+    if (!plant.active || !plant.autoBuy) continue;
+    const process = PROCESSES[plant.processId];
+    const inputReduction = mods.inputReduction[plant.processId] || {};
+    const scale = state.processScale[plant.processId] || 1;
+    const scaleMult = getScaleMultipliers(scale);
+
+    for (const [chemId, baseAmt] of Object.entries(process.inputs)) {
+      const reduction = inputReduction[chemId] || 0;
+      const needed = Math.max(0, baseAmt - reduction) * scaleMult.input;
+      totalNeeded[chemId] = (totalNeeded[chemId] || 0) + needed;
+    }
+  }
+
+  // 不足分を一括購入
+  for (const [chemId, needed] of Object.entries(totalNeeded)) {
+    const shortage = Math.ceil(needed) - (state.inventory[chemId] || 0);
+    if (shortage <= 0) continue;
+    const buyResult = buyChemical(chemId, shortage);
+    results.push({ chemId, qty: shortage, success: buyResult.success, msg: buyResult.msg });
+  }
+
+  return results;
+}
+
+function setGroupActive(processId, active) {
+  for (const plant of state.plants) {
+    if (plant.processId === processId) plant.active = active;
+  }
+}
+
+function setGroupAutoBuy(processId, autoBuy) {
+  for (const plant of state.plants) {
+    if (plant.processId === processId) plant.autoBuy = autoBuy;
+  }
+}
+
+function scaleUpProcess(processId) {
+  const process = PROCESSES[processId];
+  if (!process) return { success: false, msg: 'プロセスが見つかりません' };
+
+  const currentScale = state.processScale[processId] || 1;
+  if (currentScale >= 3) return { success: false, msg: '最大規模に達しています' };
+
+  const unitCount = state.plants.filter(p => p.processId === processId).length;
+  if (unitCount === 0) return { success: false, msg: 'まずプラントを建設してください' };
+
+  // Lv1→2: buildCost×1.0×基数、Lv2→3: buildCost×1.5×基数
+  const costPerUnit = process.buildCost * (currentScale === 1 ? 1.0 : 1.5);
+  const totalCost = Math.round(costPerUnit * unitCount);
+
+  if (state.money < totalCost) return { success: false, msg: '資金不足です' };
+
+  state.money -= totalCost;
+  state.processScale[processId] = currentScale + 1;
+
+  return {
+    success: true,
+    msg: `${process.name} 規模 Lv${currentScale}→Lv${currentScale + 1} 拡大 (¥${formatNum(totalCost)})`,
+  };
 }
 
 function investResearch(amount) {
@@ -330,6 +518,37 @@ function investResearch(amount) {
     if (newEra.name !== ERAS[TECH_LEVELS.find(t => t.level === state.techLevel - 1)?.eraIndex || 0]?.name) {
       msg += ` ＊時代が【${newEra.name}】に移行しました`;
     }
+  }
+
+  return { success: true, msg };
+}
+
+function investCategoryResearch(catId, amount) {
+  if (amount <= 0) return { success: false, msg: '金額が不正です' };
+  if (state.money < amount) return { success: false, msg: '資金不足です' };
+
+  const cat = RESEARCH_CATEGORIES[catId];
+  if (!cat) return { success: false, msg: 'カテゴリが見つかりません' };
+
+  if (state.techLevel < cat.unlockTechLevel) {
+    return { success: false, msg: `技術レベル${cat.unlockTechLevel}以上が必要です` };
+  }
+
+  const currentLv = state.researchLevels[catId] || 0;
+  const nextLvDef = cat.levels.find(l => l.level === currentLv + 1);
+  if (!nextLvDef) {
+    return { success: false, msg: `${cat.name}は最大レベルに達しています` };
+  }
+
+  state.money -= amount;
+  state.categoryResearchProgress[catId] = (state.categoryResearchProgress[catId] || 0) + amount;
+
+  let msg = `[${cat.name}] ¥${formatNum(amount)} 投資`;
+
+  if (state.categoryResearchProgress[catId] >= nextLvDef.cost) {
+    state.categoryResearchProgress[catId] = 0;
+    state.researchLevels[catId] = currentLv + 1;
+    msg += ` → Lv${state.researchLevels[catId]} 達成！【${nextLvDef.desc}】`;
   }
 
   return { success: true, msg };
