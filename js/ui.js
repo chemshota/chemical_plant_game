@@ -370,24 +370,42 @@ function renderProcessUnlockSection() {
 
   const needed = getResearchNeededForNext();
   if (needed !== null) {
+    const nextTech = TECH_LEVELS.find(t => t.level === state.techLevel + 1);
     const pct = getResearchPercent();
+    const activeTurns = state.techResearchActiveTurns;
+    const turnsNeeded = nextTech.turnsRequired;
+    const turnsPct = turnsNeeded > 0 ? Math.min(100, Math.floor((activeTurns / turnsNeeded) * 100)) : 100;
+
     html += `<div class="research-progress">`;
+    html += `<div class="progress-label">累積投資</div>`;
     html += `<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`;
     html += `<div class="progress-text">${formatNum(state.researchProgress)} / ${formatNum(needed)} (${pct}%)</div>`;
+    html += `<div class="progress-label" style="margin-top:6px;">継続ターン数</div>`;
+    html += `<div class="progress-bar-bg"><div class="progress-bar-fill progress-bar-turns" style="width:${turnsPct}%"></div></div>`;
+    html += `<div class="progress-text">${activeTurns} / ${turnsNeeded} 期 (${turnsPct}%)</div>`;
     html += `</div>`;
 
-    html += `<div class="research-invest-btns">`;
-    for (const amt of [100, 500, 1000]) {
-      const disabled = state.money < amt ? 'disabled' : '';
-      html += `<button class="btn btn-accent" onclick="handleResearch(${amt})" ${disabled}>¥${formatNum(amt)}</button>`;
-    }
-    const remaining = needed - state.researchProgress;
-    if (remaining > 0 && remaining <= state.money && remaining > 1000) {
-      html += `<button class="btn btn-accent" onclick="handleResearch(${remaining})">¥${formatNum(remaining)}（全額）</button>`;
+    const budget = state.techResearchBudget;
+    html += `<div class="research-budget-row">`;
+    html += `<span class="budget-label">毎期予算:</span>`;
+    html += `<input type="number" class="budget-input" id="tech-budget-input" value="${budget}" min="0" step="100">`;
+    html += `<button class="btn btn-sm btn-accent" onclick="handleSetTechBudget()">設定</button>`;
+    if (budget > 0) {
+      html += `<button class="btn btn-sm" onclick="handleSetTechBudget(0)">停止</button>`;
     }
     html += `</div>`;
 
-    const nextTech = TECH_LEVELS.find(t => t.level === state.techLevel + 1);
+    if (budget > 0) {
+      const eta = estimateTechResearchTurns();
+      if (eta !== null) {
+        html += `<div class="research-eta">完了まで残り約 <strong>${eta}</strong> 期（現在の予算 ¥${formatNum(budget)}/期）</div>`;
+      } else {
+        html += `<div class="research-eta research-eta-ready">条件を満たしました — 次のターン終了時に技術レベルが上がります</div>`;
+      }
+    } else {
+      html += `<div class="research-eta research-eta-stopped">研究停止中</div>`;
+    }
+
     if (nextTech && nextTech.unlocks.length > 0) {
       html += `<div class="unlock-preview">`;
       html += `<h4>Lv${nextTech.level} で解放</h4>`;
@@ -454,6 +472,8 @@ function renderCategoryCard(catId, cat) {
   const isLocked = state.techLevel < cat.unlockTechLevel;
   const isMaxed  = currentLv >= maxLv;
   const progress = state.categoryResearchProgress[catId] || 0;
+  const activeTurns = state.researchActiveTurns[catId] || 0;
+  const budget = state.researchBudgets[catId] || 0;
 
   let html = `<div class="card${isLocked ? ' card-locked' : ''}">`;
 
@@ -478,28 +498,47 @@ function renderCategoryCard(catId, cat) {
     html += `<div class="research-level-row ${cls}">`;
     html += `<span class="rlv-label">Lv${lvDef.level}</span>`;
     html += `<span class="rlv-effect">${lvDef.desc}</span>`;
-    html += `<span class="rlv-cost">${done ? '✓ 達成' : '¥' + formatNum(lvDef.cost)}</span>`;
+    if (done) {
+      html += `<span class="rlv-cost">達成</span>`;
+    } else {
+      html += `<span class="rlv-cost">¥${formatNum(lvDef.cost)} / ${lvDef.turnsRequired}期</span>`;
+    }
     html += `</div>`;
   }
   html += `</div>`;
 
   if (!isLocked && !isMaxed && nextLvDef) {
     const pct = Math.min(100, Math.floor((progress / nextLvDef.cost) * 100));
+    const turnsPct = Math.min(100, Math.floor((activeTurns / nextLvDef.turnsRequired) * 100));
+
     html += `<div class="research-progress">`;
+    html += `<div class="progress-label">累積投資</div>`;
     html += `<div class="progress-bar-bg"><div class="progress-bar-fill" style="width:${pct}%"></div></div>`;
     html += `<div class="progress-text">${formatNum(progress)} / ${formatNum(nextLvDef.cost)} (${pct}%)</div>`;
+    html += `<div class="progress-label" style="margin-top:6px;">継続ターン数</div>`;
+    html += `<div class="progress-bar-bg"><div class="progress-bar-fill progress-bar-turns" style="width:${turnsPct}%"></div></div>`;
+    html += `<div class="progress-text">${activeTurns} / ${nextLvDef.turnsRequired} 期 (${turnsPct}%)</div>`;
     html += `</div>`;
 
-    html += `<div class="research-invest-btns">`;
-    for (const amt of [500, 1000, 3000]) {
-      const disabled = state.money < amt ? 'disabled' : '';
-      html += `<button class="btn btn-accent btn-sm" onclick="handleCategoryResearch('${catId}', ${amt})" ${disabled}>¥${formatNum(amt)}</button>`;
-    }
-    const remaining = nextLvDef.cost - progress;
-    if (remaining > 0 && remaining <= state.money && remaining > 3000) {
-      html += `<button class="btn btn-accent btn-sm" onclick="handleCategoryResearch('${catId}', ${remaining})">¥${formatNum(remaining)}（全額）</button>`;
+    html += `<div class="research-budget-row">`;
+    html += `<span class="budget-label">毎期予算:</span>`;
+    html += `<input type="number" class="budget-input" id="cat-budget-${catId}" value="${budget}" min="0" step="100">`;
+    html += `<button class="btn btn-sm btn-accent" onclick="handleSetCategoryBudget('${catId}')">設定</button>`;
+    if (budget > 0) {
+      html += `<button class="btn btn-sm" onclick="handleSetCategoryBudget('${catId}', 0)">停止</button>`;
     }
     html += `</div>`;
+
+    if (budget > 0) {
+      const eta = estimateCategoryResearchTurns(catId);
+      if (eta !== null) {
+        html += `<div class="research-eta">完了まで残り約 <strong>${eta}</strong> 期（¥${formatNum(budget)}/期）</div>`;
+      } else {
+        html += `<div class="research-eta research-eta-ready">条件を満たしました — 次のターン終了時にレベルアップします</div>`;
+      }
+    } else {
+      html += `<div class="research-eta research-eta-stopped">研究停止中</div>`;
+    }
   }
 
   html += `</div>`;
@@ -634,6 +673,27 @@ function showTurnSummary(results) {
     html += '</div>';
   }
 
+  // 研究結果
+  if (results.researchResults && results.researchResults.length > 0) {
+    html += '<div class="summary-section"><h3>研究開発</h3>';
+    for (const r of results.researchResults) {
+      if (r.type === 'tech') {
+        if (r.leveled) {
+          html += `<div class="summary-item"><span>技術研究</span><span class="pos">Lv${r.newLevel} 到達！</span></div>`;
+        } else {
+          html += `<div class="summary-item"><span>技術研究</span><span class="neg">-¥${formatNum(r.budget)}</span></div>`;
+        }
+      } else if (r.type === 'category') {
+        if (r.leveled) {
+          html += `<div class="summary-item"><span>${r.catName}</span><span class="pos">Lv${r.newLevel} 達成！</span></div>`;
+        } else {
+          html += `<div class="summary-item"><span>${r.catName}</span><span class="neg">-¥${formatNum(r.budget)}</span></div>`;
+        }
+      }
+    }
+    html += '</div>';
+  }
+
   // 資金推移
   html += '<div class="summary-section">';
   html += `<div class="summary-total">`;
@@ -733,16 +793,62 @@ function handleScaleUp(processId) {
   render();
 }
 
-function handleResearch(amount) {
-  const result = investResearch(amount);
+function handleSetTechBudget(fixedAmount) {
+  let amount;
+  if (fixedAmount !== undefined) {
+    amount = fixedAmount;
+  } else {
+    const input = document.getElementById('tech-budget-input');
+    amount = parseInt(input ? input.value : '0') || 0;
+  }
+  const result = setTechResearchBudget(amount);
   addLog(result.msg, result.success ? 'log-info' : 'log-bad');
   render();
 }
 
-function handleCategoryResearch(catId, amount) {
-  const result = investCategoryResearch(catId, amount);
+function handleSetCategoryBudget(catId, fixedAmount) {
+  let amount;
+  if (fixedAmount !== undefined) {
+    amount = fixedAmount;
+  } else {
+    const input = document.getElementById(`cat-budget-${catId}`);
+    amount = parseInt(input ? input.value : '0') || 0;
+  }
+  const result = setCategoryResearchBudget(catId, amount);
   addLog(result.msg, result.success ? 'log-info' : 'log-bad');
   render();
+}
+
+function estimateTechResearchTurns() {
+  const budget = state.techResearchBudget;
+  if (budget <= 0) return null;
+  const nextLevel = TECH_LEVELS.find(t => t.level === state.techLevel + 1);
+  if (!nextLevel) return null;
+
+  const costRemaining = Math.max(0, nextLevel.researchNeeded - state.researchProgress);
+  const turnsForCost = Math.ceil(costRemaining / budget);
+  const turnsForMin = Math.max(0, nextLevel.turnsRequired - state.techResearchActiveTurns);
+  const total = Math.max(turnsForCost, turnsForMin);
+  if (total === 0) return null;
+  return total;
+}
+
+function estimateCategoryResearchTurns(catId) {
+  const budget = state.researchBudgets[catId] || 0;
+  if (budget <= 0) return null;
+  const cat = RESEARCH_CATEGORIES[catId];
+  const currentLv = state.researchLevels[catId] || 0;
+  const nextLvDef = cat.levels.find(l => l.level === currentLv + 1);
+  if (!nextLvDef) return null;
+
+  const progress = state.categoryResearchProgress[catId] || 0;
+  const activeTurns = state.researchActiveTurns[catId] || 0;
+  const costRemaining = Math.max(0, nextLvDef.cost - progress);
+  const turnsForCost = Math.ceil(costRemaining / budget);
+  const turnsForMin = Math.max(0, nextLvDef.turnsRequired - activeTurns);
+  const total = Math.max(turnsForCost, turnsForMin);
+  if (total === 0) return null;
+  return total;
 }
 
 function handleEndTurn() {
@@ -776,6 +882,31 @@ function handleEndTurn() {
   }
   for (const [pid, cnt] of Object.entries(logFail)) {
     addLog(`${PROCESSES[pid].name} ×${cnt}基: 原料不足`, 'log-warn');
+  }
+
+  // 研究ログ
+  for (const r of results.researchResults || []) {
+    if (r.type === 'tech') {
+      if (r.leveled) {
+        let msg = `技術レベル ${r.newLevel} に到達！`;
+        for (const id of r.unlocks) {
+          if (id.startsWith('__era__')) {
+            msg += ` 時代が【${id.slice(7)}】に移行`;
+          } else {
+            msg += ` 【${PROCESSES[id].name}】解放`;
+          }
+        }
+        addLog(msg, 'log-good');
+      } else {
+        addLog(`[技術研究] ¥${formatNum(r.budget)} 投資`, 'log-info');
+      }
+    } else if (r.type === 'category') {
+      if (r.leveled) {
+        addLog(`[${r.catName}] Lv${r.newLevel} 達成！【${r.desc}】`, 'log-good');
+      } else {
+        addLog(`[${r.catName}] ¥${formatNum(r.budget)} 投資`, 'log-info');
+      }
+    }
   }
 
   // サマリー表示
