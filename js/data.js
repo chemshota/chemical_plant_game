@@ -6,16 +6,20 @@
 
 const CHEMICALS = {
   // 原料 (Raw materials) — 原料価格は低く抑え、製品との差益を確保
-  salt:      { name: '食塩',     basePrice: 80,   isRaw: true  },
-  limestone: { name: '石灰石',   basePrice: 50,   isRaw: true  },
-  sulfur:    { name: '硫黄',     basePrice: 120,  isRaw: true  },
-  coal:      { name: '石炭',     basePrice: 100,  isRaw: true  },
+  salt:        { name: '食塩',     basePrice: 80,   isRaw: true  },
+  limestone:   { name: '石灰石',   basePrice: 50,   isRaw: true  },
+  sulfur:      { name: '硫黄',     basePrice: 120,  isRaw: true  },
+  coal:        { name: '石炭',     basePrice: 100,  isRaw: true  },
+  natural_gas: { name: '天然ガス', basePrice: 150,  isRaw: true  },
   // 製品 (Products) — 原料の約5〜10倍の付加価値を設定
   sulfuric_acid:     { name: '硫酸',       basePrice: 650,  isRaw: false },
   soda_ash:          { name: 'ソーダ灰',   basePrice: 1000, isRaw: false },
   hydrochloric_acid: { name: '塩酸',       basePrice: 500,  isRaw: false },
   caustic_soda:      { name: '苛性ソーダ', basePrice: 1400, isRaw: false },
   chlorine:          { name: '塩素',       basePrice: 950,  isRaw: false },
+  ammonia:           { name: 'アンモニア', basePrice: 1300, isRaw: false },
+  nitric_acid:       { name: '硝酸',       basePrice: 1800, isRaw: false },
+  ammonium_sulfate:  { name: '硫安',       basePrice: 1600, isRaw: false },
 };
 
 // ============================================================
@@ -59,6 +63,33 @@ const PROCESSES = {
     buildCost: 38000,
     operatingCost: 500,
   },
+  haber_bosch: {
+    name: 'ハーバー・ボッシュ法',
+    desc: '高温高圧下で水素源と窒素を反応させアンモニアを直接合成する画期的プロセス',
+    inputs:  { natural_gas: 3, coal: 1 },
+    outputs: { ammonia: 2 },
+    techRequired: 4,
+    buildCost: 80000,
+    operatingCost: 800,
+  },
+  ostwald: {
+    name: 'オストワルト法',
+    desc: 'アンモニアを白金触媒上で酸化し硝酸を製造する',
+    inputs:  { ammonia: 2, coal: 1 },
+    outputs: { nitric_acid: 3 },
+    techRequired: 5,
+    buildCost: 60000,
+    operatingCost: 600,
+  },
+  ammonium_sulfate_production: {
+    name: '硫安製造',
+    desc: 'アンモニアと硫酸を中和し、肥料用硫安を製造する',
+    inputs:  { ammonia: 1, sulfuric_acid: 1 },
+    outputs: { ammonium_sulfate: 2 },
+    techRequired: 5,
+    buildCost: 40000,
+    operatingCost: 400,
+  },
 };
 
 // ============================================================
@@ -75,6 +106,9 @@ const ERAS = [
       hydrochloric_acid: 2,
       caustic_soda: 1,
       chlorine: 1,
+      ammonia: 1,
+      nitric_acid: 1,
+      ammonium_sulfate: 1,
     },
   },
   {
@@ -86,6 +120,23 @@ const ERAS = [
       hydrochloric_acid: 2,
       caustic_soda: 4,
       chlorine: 4,
+      ammonia: 1,
+      nitric_acid: 1,
+      ammonium_sulfate: 1,
+    },
+  },
+  {
+    name: 'アンモニア工業時代',
+    desc: 'ハーバー・ボッシュ法によるアンモニア合成が産業構造を一変させ、化学肥料・火薬・染料原料の需要が爆発的に拡大',
+    baseDemand: {
+      sulfuric_acid: 4,
+      soda_ash: 2,
+      hydrochloric_acid: 2,
+      caustic_soda: 3,
+      chlorine: 3,
+      ammonia: 4,
+      nitric_acid: 4,
+      ammonium_sulfate: 5,
     },
   },
 ];
@@ -116,8 +167,14 @@ const TECH_LEVELS = [
   {
     level: 4,
     researchNeeded: 80000,
-    unlocks: [],
-    eraIndex: 1,
+    unlocks: ['haber_bosch'],
+    eraIndex: 2,
+  },
+  {
+    level: 5,
+    researchNeeded: 200000,
+    unlocks: ['ostwald', 'ammonium_sulfate_production'],
+    eraIndex: 2,
   },
 ];
 
@@ -166,6 +223,16 @@ const RESEARCH_CATEGORIES = {
     levels: [
       { level: 1, cost: 20000, desc: '電解法: 運転費 -25%追加',   effect: { processOpCostDiscount: { chloralkali: 0.25 } } },
       { level: 2, cost: 55000, desc: '電解法: 石炭消費 2t → 1t', effect: { inputReduction: { chloralkali: { coal: 1 } } } },
+    ],
+  },
+  high_pressure: {
+    id: 'high_pressure',
+    name: '高圧合成技術',
+    desc: '高圧反応容器と触媒の改良により、ハーバー・ボッシュ法の効率を抜本的に向上させる（アンモニア工業時代の技術）',
+    unlockTechLevel: 4,
+    levels: [
+      { level: 1, cost: 30000, desc: 'ハーバー・ボッシュ法: 運転費 -25%追加', effect: { processOpCostDiscount: { haber_bosch: 0.25 } } },
+      { level: 2, cost: 80000, desc: 'ハーバー・ボッシュ法: 天然ガス 3t → 2t', effect: { inputReduction: { haber_bosch: { natural_gas: 1 } } } },
     ],
   },
 };
