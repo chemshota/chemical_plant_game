@@ -14,6 +14,8 @@ function createInitialState() {
     turn: 1,
     techLevel: 1,
     researchProgress: 0,
+    techResearchBudget: 0,
+    techResearchActiveTurns: 0,
     researchLevels: {
       upstream:         0,
       reaction:         0,
@@ -22,6 +24,20 @@ function createInitialState() {
       high_pressure:    0,
     },
     categoryResearchProgress: {
+      upstream:         0,
+      reaction:         0,
+      separation:       0,
+      electrochemistry: 0,
+      high_pressure:    0,
+    },
+    researchBudgets: {
+      upstream:         0,
+      reaction:         0,
+      separation:       0,
+      electrochemistry: 0,
+      high_pressure:    0,
+    },
+    researchActiveTurns: {
       upstream:         0,
       reaction:         0,
       separation:       0,
@@ -280,14 +296,17 @@ function processTurn() {
   // 2. 生産実行
   const productionResults = runProduction();
 
-  // 3. 市場更新（次ターンの価格・需要）
+  // 3. 研究処理
+  const researchResults = processResearchTurn();
+
+  // 4. 市場更新（次ターンの価格・需要）
   prevPrices = { ...state.market.prices };
   updateMarket();
 
-  // 4. ターン進行
+  // 5. ターン進行
   state.turn++;
 
-  // 5. 結果サマリー作成
+  // 6. 結果サマリー作成
   const totalCost = productionResults
     .filter(r => r.success)
     .reduce((sum, r) => sum + r.cost, 0);
@@ -295,6 +314,7 @@ function processTurn() {
   return {
     autoBuyResults,
     productionResults,
+    researchResults,
     prevMoney,
     newMoney: state.money,
     totalCost,
@@ -487,76 +507,104 @@ function scaleUpProcess(processId) {
   };
 }
 
-function investResearch(amount) {
-  if (amount <= 0) return { success: false, msg: '金額が不正です' };
-  if (state.money < amount) {
-    return { success: false, msg: '資金不足です' };
+function setTechResearchBudget(amount) {
+  if (amount < 0) return { success: false, msg: '金額が不正です' };
+  state.techResearchBudget = amount;
+  if (amount === 0) {
+    return { success: true, msg: '技術研究を停止しました' };
   }
-
-  // 次のレベルの要件を取得
-  const nextLevel = TECH_LEVELS.find(t => t.level === state.techLevel + 1);
-  if (!nextLevel) {
-    return { success: false, msg: '最大技術レベルに到達しています' };
-  }
-
-  state.money -= amount;
-  state.researchProgress += amount;
-
-  let msg = `¥${formatNum(amount)} を研究開発に投資`;
-
-  // レベルアップチェック
-  if (state.researchProgress >= nextLevel.researchNeeded) {
-    state.techLevel++;
-    state.researchProgress = 0;
-    msg += ` → 技術レベル ${state.techLevel} に到達！`;
-
-    // 新プロセス解放ログ
-    for (const processId of nextLevel.unlocks) {
-      const p = PROCESSES[processId];
-      if (p) {
-        msg += ` 【${p.name}】が解放されました`;
-      }
-    }
-
-    // 時代遷移チェック
-    const newEra = getCurrentEra();
-    if (newEra.name !== ERAS[TECH_LEVELS.find(t => t.level === state.techLevel - 1)?.eraIndex || 0]?.name) {
-      msg += ` ＊時代が【${newEra.name}】に移行しました`;
-    }
-  }
-
-  return { success: true, msg };
+  return { success: true, msg: `技術研究予算: 毎期 ¥${formatNum(amount)}` };
 }
 
-function investCategoryResearch(catId, amount) {
-  if (amount <= 0) return { success: false, msg: '金額が不正です' };
-  if (state.money < amount) return { success: false, msg: '資金不足です' };
-
+function setCategoryResearchBudget(catId, amount) {
+  if (amount < 0) return { success: false, msg: '金額が不正です' };
   const cat = RESEARCH_CATEGORIES[catId];
   if (!cat) return { success: false, msg: 'カテゴリが見つかりません' };
+  state.researchBudgets[catId] = amount;
+  if (amount === 0) {
+    return { success: true, msg: `[${cat.name}] 研究を停止しました` };
+  }
+  return { success: true, msg: `[${cat.name}] 毎期予算: ¥${formatNum(amount)}` };
+}
 
-  if (state.techLevel < cat.unlockTechLevel) {
-    return { success: false, msg: `技術レベル${cat.unlockTechLevel}以上が必要です` };
+function processResearchTurn() {
+  const results = [];
+
+  // 技術研究
+  if (state.techResearchBudget > 0) {
+    const nextLevel = TECH_LEVELS.find(t => t.level === state.techLevel + 1);
+    if (nextLevel) {
+      const actualBudget = Math.min(state.techResearchBudget, state.money);
+      if (actualBudget > 0) {
+        state.money -= actualBudget;
+        state.researchProgress += actualBudget;
+        state.techResearchActiveTurns++;
+
+        let leveled = false;
+        const unlocks = [];
+        if (state.researchProgress >= nextLevel.researchNeeded &&
+            state.techResearchActiveTurns >= nextLevel.turnsRequired) {
+          const prevTechLevel = state.techLevel;
+          state.techLevel++;
+          state.researchProgress = 0;
+          state.techResearchActiveTurns = 0;
+          leveled = true;
+
+          for (const processId of nextLevel.unlocks) {
+            if (PROCESSES[processId]) unlocks.push(processId);
+          }
+
+          // 時代遷移チェック
+          const newEra = getCurrentEra();
+          const prevEra = ERAS[TECH_LEVELS.find(t => t.level === prevTechLevel)?.eraIndex || 0];
+          if (newEra !== prevEra) unlocks.push('__era__' + newEra.name);
+        }
+
+        results.push({ type: 'tech', budget: actualBudget, leveled, newLevel: leveled ? state.techLevel : null, unlocks });
+      }
+    }
   }
 
-  const currentLv = state.researchLevels[catId] || 0;
-  const nextLvDef = cat.levels.find(l => l.level === currentLv + 1);
-  if (!nextLvDef) {
-    return { success: false, msg: `${cat.name}は最大レベルに達しています` };
+  // カテゴリ研究
+  for (const catId of Object.keys(RESEARCH_CATEGORIES)) {
+    const budget = state.researchBudgets[catId] || 0;
+    if (budget <= 0) continue;
+
+    const cat = RESEARCH_CATEGORIES[catId];
+    if (state.techLevel < cat.unlockTechLevel) continue;
+
+    const currentLv = state.researchLevels[catId] || 0;
+    const nextLvDef = cat.levels.find(l => l.level === currentLv + 1);
+    if (!nextLvDef) continue;
+
+    const actualBudget = Math.min(budget, state.money);
+    if (actualBudget <= 0) continue;
+
+    state.money -= actualBudget;
+    state.categoryResearchProgress[catId] = (state.categoryResearchProgress[catId] || 0) + actualBudget;
+    state.researchActiveTurns[catId] = (state.researchActiveTurns[catId] || 0) + 1;
+
+    let leveled = false;
+    if (state.categoryResearchProgress[catId] >= nextLvDef.cost &&
+        state.researchActiveTurns[catId] >= nextLvDef.turnsRequired) {
+      state.researchLevels[catId] = currentLv + 1;
+      state.categoryResearchProgress[catId] = 0;
+      state.researchActiveTurns[catId] = 0;
+      leveled = true;
+    }
+
+    results.push({
+      type: 'category',
+      catId,
+      catName: cat.name,
+      budget: actualBudget,
+      leveled,
+      newLevel: leveled ? state.researchLevels[catId] : null,
+      desc: leveled ? nextLvDef.desc : null,
+    });
   }
 
-  state.money -= amount;
-  state.categoryResearchProgress[catId] = (state.categoryResearchProgress[catId] || 0) + amount;
-
-  let msg = `[${cat.name}] ¥${formatNum(amount)} 投資`;
-
-  if (state.categoryResearchProgress[catId] >= nextLvDef.cost) {
-    state.categoryResearchProgress[catId] = 0;
-    state.researchLevels[catId] = currentLv + 1;
-    msg += ` → Lv${state.researchLevels[catId]} 達成！【${nextLvDef.desc}】`;
-  }
-
-  return { success: true, msg };
+  return results;
 }
 
 // ============================================================

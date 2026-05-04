@@ -890,6 +890,62 @@ body {
   font-family: "SF Mono", "Fira Code", monospace;
 }
 
+/* ---- Research budget UI ---- */
+.progress-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+}
+
+.progress-bar-turns {
+  background: linear-gradient(90deg, #1a3a4a, var(--blue));
+}
+
+.research-budget-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.budget-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.budget-input {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  padding: 4px 8px;
+  width: 110px;
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.budget-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.research-eta {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--blue);
+  font-family: "SF Mono", "Fira Code", monospace;
+}
+
+.research-eta-ready {
+  color: var(--green);
+}
+
+.research-eta-stopped {
+  color: var(--text-muted);
+}
+
 /* ---- Scrollbar ---- */
 ::-webkit-scrollbar {
   width: 6px;

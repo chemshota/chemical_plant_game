@@ -149,30 +149,35 @@ const TECH_LEVELS = [
   {
     level: 1,
     researchNeeded: 0,
+    turnsRequired: 0,
     unlocks: [],
     eraIndex: 0,
   },
   {
     level: 2,
     researchNeeded: 12000,
+    turnsRequired: 4,
     unlocks: ['solvay'],
     eraIndex: 0,
   },
   {
     level: 3,
     researchNeeded: 30000,
+    turnsRequired: 6,
     unlocks: ['chloralkali'],
     eraIndex: 1,
   },
   {
     level: 4,
     researchNeeded: 80000,
+    turnsRequired: 8,
     unlocks: ['haber_bosch'],
     eraIndex: 2,
   },
   {
     level: 5,
     researchNeeded: 200000,
+    turnsRequired: 12,
     unlocks: ['ostwald', 'ammonium_sulfate_production'],
     eraIndex: 2,
   },
@@ -189,9 +194,9 @@ const RESEARCH_CATEGORIES = {
     desc: '原料の調達・前処理を最適化し、購入コストを削減する',
     unlockTechLevel: 1,
     levels: [
-      { level: 1, cost: 5000,  desc: '原料購入価格 -10%', effect: { rawPriceDiscount: 0.10 } },
-      { level: 2, cost: 15000, desc: '原料購入価格 -20%', effect: { rawPriceDiscount: 0.20 } },
-      { level: 3, cost: 45000, desc: '原料購入価格 -30%', effect: { rawPriceDiscount: 0.30 } },
+      { level: 1, cost: 5000,  turnsRequired: 3, desc: '原料購入価格 -10%', effect: { rawPriceDiscount: 0.10 } },
+      { level: 2, cost: 15000, turnsRequired: 4, desc: '原料購入価格 -20%', effect: { rawPriceDiscount: 0.20 } },
+      { level: 3, cost: 45000, turnsRequired: 6, desc: '原料購入価格 -30%', effect: { rawPriceDiscount: 0.30 } },
     ],
   },
   reaction: {
@@ -200,9 +205,9 @@ const RESEARCH_CATEGORIES = {
     desc: '触媒・反応条件の最適化により、全プロセスの運転費を削減する',
     unlockTechLevel: 1,
     levels: [
-      { level: 1, cost: 6000,  desc: '全プロセス運転費 -15%', effect: { operatingCostDiscount: 0.15 } },
-      { level: 2, cost: 18000, desc: '全プロセス運転費 -30%', effect: { operatingCostDiscount: 0.30 } },
-      { level: 3, cost: 55000, desc: '全プロセス運転費 -45%', effect: { operatingCostDiscount: 0.45 } },
+      { level: 1, cost: 6000,  turnsRequired: 3, desc: '全プロセス運転費 -15%', effect: { operatingCostDiscount: 0.15 } },
+      { level: 2, cost: 18000, turnsRequired: 5, desc: '全プロセス運転費 -30%', effect: { operatingCostDiscount: 0.30 } },
+      { level: 3, cost: 55000, turnsRequired: 7, desc: '全プロセス運転費 -45%', effect: { operatingCostDiscount: 0.45 } },
     ],
   },
   separation: {
@@ -211,8 +216,8 @@ const RESEARCH_CATEGORIES = {
     desc: '製品の分離・精製プロセスを改善し、特定プロセスの収率を向上させる',
     unlockTechLevel: 1,
     levels: [
-      { level: 1, cost: 10000, desc: 'ソルベー法: ソーダ灰 +1t/回', effect: { outputBonus: { solvay: { soda_ash: 1 } } } },
-      { level: 2, cost: 30000, desc: '接触法: 硫酸 +1t/回',         effect: { outputBonus: { contact: { sulfuric_acid: 1 } } } },
+      { level: 1, cost: 10000, turnsRequired: 4, desc: 'ソルベー法: ソーダ灰 +1t/回', effect: { outputBonus: { solvay: { soda_ash: 1 } } } },
+      { level: 2, cost: 30000, turnsRequired: 6, desc: '接触法: 硫酸 +1t/回',         effect: { outputBonus: { contact: { sulfuric_acid: 1 } } } },
     ],
   },
   electrochemistry: {
@@ -221,8 +226,8 @@ const RESEARCH_CATEGORIES = {
     desc: '電解プロセスの省エネ化と収率向上に特化した高度技術（電解法解放後に利用可能）',
     unlockTechLevel: 3,
     levels: [
-      { level: 1, cost: 20000, desc: '電解法: 運転費 -25%追加',   effect: { processOpCostDiscount: { chloralkali: 0.25 } } },
-      { level: 2, cost: 55000, desc: '電解法: 石炭消費 2t → 1t', effect: { inputReduction: { chloralkali: { coal: 1 } } } },
+      { level: 1, cost: 20000, turnsRequired: 5, desc: '電解法: 運転費 -25%追加',   effect: { processOpCostDiscount: { chloralkali: 0.25 } } },
+      { level: 2, cost: 55000, turnsRequired: 8, desc: '電解法: 石炭消費 2t → 1t', effect: { inputReduction: { chloralkali: { coal: 1 } } } },
     ],
   },
   high_pressure: {
@@ -231,8 +236,8 @@ const RESEARCH_CATEGORIES = {
     desc: '高圧反応容器と触媒の改良により、ハーバー・ボッシュ法の効率を抜本的に向上させる（アンモニア工業時代の技術）',
     unlockTechLevel: 4,
     levels: [
-      { level: 1, cost: 30000, desc: 'ハーバー・ボッシュ法: 運転費 -25%追加', effect: { processOpCostDiscount: { haber_bosch: 0.25 } } },
-      { level: 2, cost: 80000, desc: 'ハーバー・ボッシュ法: 天然ガス 3t → 2t', effect: { inputReduction: { haber_bosch: { natural_gas: 1 } } } },
+      { level: 1, cost: 30000, turnsRequired: 6,  desc: 'ハーバー・ボッシュ法: 運転費 -25%追加', effect: { processOpCostDiscount: { haber_bosch: 0.25 } } },
+      { level: 2, cost: 80000, turnsRequired: 10, desc: 'ハーバー・ボッシュ法: 天然ガス 3t → 2t', effect: { inputReduction: { haber_bosch: { natural_gas: 1 } } } },
     ],
   },
 };
