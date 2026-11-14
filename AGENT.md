@@ -55,6 +55,7 @@ src/sim/save.ts
 src/sim/state.ts
 src/sim/turn.ts
 src/ui/app.ts
+src/ui/flow.ts
 src/ui/format.ts
 src/ui/input.ts
 src/ui/panels.ts

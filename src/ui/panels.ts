@@ -17,6 +17,7 @@ import { deserialize, serialize } from '../sim/save';
 import { getMods, SITE_MAX_W, total, type Contract, type Device, type GameState, type TurnReport } from '../sim/state';
 import { endTurn } from '../sim/turn';
 import { game, refresh, setMessage, setTool, startNewGame, ui, type Tab } from './app';
+import { isFlowOpen, toggleFlowWindow } from './flow';
 import { amountsText, chemName, escapeHtml, qty, yen } from './format';
 
 // ============================================================
@@ -71,6 +72,7 @@ function renderTopbar(): void {
     <div class="stat"><span>研究</span><b>${s.rp} pt</b></div>
     ${power}
     <div class="spacer"></div>
+    <button class="${isFlowOpen() ? 'active' : ''}" data-act="flow">物質フロー</button>
     <button data-act="menu">メニュー</button>
     <button data-act="next5" ${s.gameOver ? 'disabled' : ''}>5期進める</button>
     <button class="primary" data-act="next" ${s.gameOver ? 'disabled' : ''}>次の期へ</button>`;
@@ -521,6 +523,7 @@ function handleAction(act: string, arg: string): void {
       }
       break;
     }
+    case 'flow': toggleFlowWindow(); break;
     case 'menu': showMenu(); return;
     case 'help': showHelp(); return;
     case 'export': exportSave(); return;

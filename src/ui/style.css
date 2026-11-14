@@ -322,3 +322,52 @@ table.plain tr.sum td { font-weight: 600; border-bottom: none; }
 .modal p { margin: 6px 0; }
 .modal .actions { justify-content: flex-end; margin-top: 14px; }
 .menu { display: flex; flex-direction: column; gap: 6px; }
+
+/* ── 物質フロー ウインドウ ── */
+
+#flow-window {
+  position: fixed;
+  left: 216px;
+  top: 64px;
+  width: 760px;
+  height: 560px;
+  min-width: 360px;
+  min-height: 200px;
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+  display: none;
+  flex-direction: column;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-light);
+  border-radius: 10px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.6);
+  resize: both;
+  overflow: hidden;
+  z-index: 5;
+}
+
+.flow-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  cursor: move;
+  user-select: none;
+}
+
+.flow-title b { color: var(--accent); }
+
+.flow-body {
+  flex: 1;
+  overflow: auto;
+  padding: 12px;
+}
+
+.flow-body h3 { font-size: 13px; margin: 14px 0 6px; }
+.flow-body h3 small, .flow-body td small { color: var(--text-muted); font-weight: normal; }
+.flow-body ul { padding-left: 18px; }
+.flow-diagram { overflow-x: auto; background: var(--bg-primary); border: 1px solid var(--border); border-radius: 8px; }
+.flow-diagram svg { display: block; }
+.flow-legends { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-bottom: 8px; font-size: 12px; }
+.flow-legend { display: inline-flex; align-items: center; gap: 5px; }
