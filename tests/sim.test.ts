@@ -186,3 +186,42 @@ describe('時代の進行と電力', () => {
     expect(researchTech(state, 'haber_bosch').ok).toBe(false);
   });
 });
+
+describe('隣り合った装置の直結', () => {
+  it('配管がなくても、隣り合った装置どうしで物質が渡る', () => {
+    const state = createInitialState(1);
+    const intake = build(state, 'intake', 0, 0, 'sulfur');
+    const chamber = build(state, 'lead_chamber', 0, 1);
+    const furnace = build(state, 'saltcake_furnace', 2, 1);
+    const stack = build(state, 'stack', 4, 1);
+    const links = findNetworks(state);
+    expect(links.every(n => n.tiles.length === 0)).toBe(true);
+    expect(links.map(n => `${n.chem}:${n.deviceIds.join('-')}`).sort()).toEqual([
+      `hcl_gas:${furnace.id}-${stack.id}`,
+      `sulfur:${intake.id}-${chamber.id}`,
+      `sulfuric_acid:${chamber.id}-${furnace.id}`,
+    ]);
+    for (let i = 0; i < 3; i++) endTurn(state);
+    expect(chamber.status).toBe('ok');
+    expect(furnace.inBuf.sulfuric_acid).toBeGreaterThan(0);
+  });
+
+  it('受け渡す物質のない装置どうしは、隣り合ってもつながらない', () => {
+    const state = createInitialState(1);
+    build(state, 'lead_chamber', 0, 1);
+    build(state, 'black_ash_furnace', 2, 1);
+    expect(findNetworks(state)).toHaveLength(0);
+  });
+
+  it('直結した出荷より、配管でつないだ反応装置が優先される', () => {
+    const state = createInitialState(1);
+    const shipping = build(state, 'shipping', 0, 0);
+    const chamber = build(state, 'lead_chamber', 0, 1);
+    const furnace = build(state, 'saltcake_furnace', 5, 1);
+    pipes(state, 'sulfuric_acid', [[2, 1], [3, 1], [4, 1]]);
+    chamber.outBuf.sulfuric_acid = 6;
+    distribute(state);
+    expect(furnace.inBuf.sulfuric_acid).toBeCloseTo(6);
+    expect(total(shipping.inBuf)).toBeCloseTo(0);
+  });
+});

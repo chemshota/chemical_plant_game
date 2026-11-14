@@ -83,7 +83,7 @@ function onMouseDown(tile: { x: number; y: number }): void {
   }
   if (ui.tool === 'pipe') {
     if (target) {
-      setMessage('配管は空いたタイルに敷いてください。装置には隣のタイルからつながります');
+      setMessage('配管は空いたタイルに敷いてください。装置には隣のタイルからつながります (隣り合った装置どうしは配管不要)');
       return;
     }
     dragging = true;

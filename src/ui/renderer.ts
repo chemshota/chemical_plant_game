@@ -1,7 +1,7 @@
 import { CHEMICALS, type ChemId } from '../data/chemicals';
 import { DEVICE_TYPES, type DeviceRole } from '../data/devices';
 import { canPlace, deviceAt, footprint } from '../sim/grid';
-import { handlesChem } from '../sim/network';
+import { findNetworks, handlesChem } from '../sim/network';
 import { tileKey, type Device, type DeviceStatus } from '../sim/state';
 import { game, ui } from './app';
 
@@ -154,6 +154,43 @@ function drawDevice(d: Device): void {
   }
 }
 
+// 隣り合った装置どうしの直結を、接している辺の上に物質の色の印で示す
+function drawDirectLinks(): void {
+  const state = game.state;
+  const byId = new Map(state.devices.map(d => [d.id, d]));
+  const counts = new Map<string, number>();
+  for (const net of findNetworks(state)) {
+    if (net.tiles.length) continue;
+    const a = byId.get(net.deviceIds[0])!;
+    const b = byId.get(net.deviceIds[1])!;
+    const pairKey = net.deviceIds.join('-');
+    const index = counts.get(pairKey) ?? 0;
+    counts.set(pairKey, index + 1);
+    const shift = (index % 2 ? 1 : -1) * Math.ceil(index / 2) * 11;
+
+    let px: number;
+    let py: number;
+    if (a.x + a.w === b.x || b.x + b.w === a.x) {
+      px = (a.x + a.w === b.x ? b.x : a.x) * TILE;
+      py = (Math.max(a.y, b.y) + Math.min(a.y + a.h, b.y + b.h)) / 2 * TILE + shift;
+    } else {
+      px = (Math.max(a.x, b.x) + Math.min(a.x + a.w, b.x + b.w)) / 2 * TILE + shift;
+      py = (a.y + a.h === b.y ? b.y : a.y) * TILE;
+    }
+    ctx.fillStyle = CHEMICALS[net.chem].color;
+    ctx.strokeStyle = '#0d1117';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py - 6);
+    ctx.lineTo(px + 6, py);
+    ctx.lineTo(px, py + 6);
+    ctx.lineTo(px - 6, py);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+}
+
 function drawOverlay(): void {
   const state = game.state;
   const hover = ui.hover;
@@ -180,5 +217,6 @@ export function drawBoard(): void {
   drawGrid();
   drawPipes();
   for (const d of game.state.devices) drawDevice(d);
+  drawDirectLinks();
   drawOverlay();
 }

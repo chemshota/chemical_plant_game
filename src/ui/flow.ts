@@ -192,7 +192,7 @@ function renderBalance(state: GameState, edges: Edge[]): string {
     const surplus = rated - usedRated;
     let outlet = [...outlets].join('、');
     if (!outlet) {
-      if (rated > 0 && !piped) outlet = '<span class="bad">配管なし</span>';
+      if (rated > 0 && !piped) outlet = '<span class="bad">接続なし</span>';
       else if (!isIntakeOnly && surplus > 0.05) outlet = '<span class="bad">余剰の行き先なし</span>';
       else if (rated === 0) outlet = '<span class="bad">供給なし</span>';
       else outlet = '—';

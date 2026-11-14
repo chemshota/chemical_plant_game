@@ -8,6 +8,7 @@ import { add, getMods, tileKey, total, type Device, type GameState, type Mods } 
 
 const EPS = 1e-9;
 
+// tiles が空のものは、隣り合った装置どうしの直結
 export interface Network {
   chem: ChemId;
   tiles: string[];
@@ -51,7 +52,40 @@ export function findNetworks(state: GameState): Network[] {
       networks.push({ chem, tiles, deviceIds: [...deviceIds].sort((a, b) => a - b) });
     }
   }
-  return networks;
+  return [...networks, ...findDirectLinks(state, occupied)];
+}
+
+function sourceChems(d: Device): ChemId[] {
+  const def = DEVICE_TYPES[d.type];
+  if (def.role === 'intake' || def.role === 'tank') return d.chem ? [d.chem] : [];
+  return Object.keys(def.outputs) as ChemId[];
+}
+
+// 辺で接している装置の組ごとに、片方が出して片方が受ける物質を直結する
+function findDirectLinks(state: GameState, occupied: Map<string, number>): Network[] {
+  const byId = new Map(state.devices.map(d => [d.id, d]));
+  const links: Network[] = [];
+  const seen = new Set<string>();
+  for (const a of state.devices) {
+    for (let y = a.y; y < a.y + a.h; y++) {
+      for (let x = a.x; x < a.x + a.w; x++) {
+        for (const [dx, dy] of NEIGHBORS) {
+          const otherId = occupied.get(tileKey(x + dx, y + dy));
+          if (otherId === undefined || otherId <= a.id || seen.has(`${a.id}-${otherId}`)) continue;
+          seen.add(`${a.id}-${otherId}`);
+          const b = byId.get(otherId)!;
+          const chems = new Set<ChemId>();
+          for (const [from, to] of [[a, b], [b, a]]) {
+            for (const chem of sourceChems(from)) {
+              if (sinkPriority({ ...to, enabled: true }, chem) > 0) chems.add(chem);
+            }
+          }
+          for (const chem of chems) links.push({ chem, tiles: [], deviceIds: [a.id, b.id] });
+        }
+      }
+    }
+  }
+  return links;
 }
 
 // 入出力バッファは1期分の2倍まで
@@ -114,18 +148,25 @@ function transfer(
 
 export function distribute(state: GameState): void {
   const byId = new Map(state.devices.map(d => [d.id, d]));
-  for (const net of findNetworks(state)) {
-    const chem = net.chem;
-    const devs = net.deviceIds.map(id => byId.get(id)!);
-    const sources = devs.filter(d => sourceSupply(d, chem) > EPS);
-    const tanks = devs.filter(d => DEVICE_TYPES[d.type].role === 'tank' && d.chem === chem);
+  const networks = findNetworks(state).map(net => ({
+    chem: net.chem,
+    devs: net.deviceIds.map(id => byId.get(id)!),
+  }));
 
-    for (const priority of [1, 2, 3, 4]) {
+  // 優先度の高い受け入れ先から、すべての配管網・直結をまたいで順に満たす
+  for (const priority of [1, 2, 3, 4]) {
+    for (const { chem, devs } of networks) {
       const sinks = devs.filter(d => sinkPriority(d, chem) === priority);
       if (!sinks.length) continue;
+      const sources = devs.filter(d => sourceSupply(d, chem) > EPS);
       transfer(chem, sources, d => sourceSupply(d, chem), (d, qty) => add(d.outBuf, chem, -qty), sinks);
-      if (priority === 1) {
-        // 反応装置の不足分だけ貯槽から払い出す
+    }
+    if (priority !== 1) continue;
+    // 反応装置の不足分だけ貯槽から払い出す
+    for (const { chem, devs } of networks) {
+      const sinks = devs.filter(d => sinkPriority(d, chem) === 1);
+      const tanks = devs.filter(d => DEVICE_TYPES[d.type].role === 'tank' && d.chem === chem);
+      if (sinks.length && tanks.length) {
         transfer(chem, tanks, d => d.inBuf[chem] ?? 0, (d, qty) => add(d.inBuf, chem, -qty), sinks);
       }
     }
