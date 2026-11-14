@@ -20,7 +20,7 @@ BEGIN_MARKER = "<!-- BEGIN:FILE-TREE -->"
 END_MARKER = "<!-- END:FILE-TREE -->"
 
 # ソースとして扱うトップレベル要素 (ファイル or ディレクトリ)
-SOURCE_PATHS: list[str] = ["index.html", "css", "js"]
+SOURCE_PATHS: list[str] = ["index.html", "src", "tests"]
 # 一覧から除外するファイル名パターン
 EXCLUDE_SUFFIXES: tuple[str, ...] = (".swp", ".bak", "~")
 

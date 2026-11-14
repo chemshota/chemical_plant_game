@@ -6,30 +6,27 @@
 
 ## プロジェクト概要
 
-化学プラントを舞台にしたターン制経営シミュレーションゲームです。ブラウザだけで動作し、**ビルドツール・パッケージマネージャ・依存ライブラリは一切使用していません**。素のHTML / CSS / JavaScript (ES2015+) のみで構成されています。
+19〜20世紀の化学工業史をたどる、ターン制の工場レイアウト型経営ゲームです。敷地のタイルグリッドに装置を置き、物質ごとの配管でつなぎ、副生成物と連産品の行き先を設計します。
+
+**Vite 5 + TypeScript (strict) + Vitest** で構成しています。UI フレームワークは使わず、敷地は Canvas 2D、パネルは素の DOM です。Node は 18 系で動く版に固定しています。
 
 ユーザー向けの詳細は `README.md` を参照してください。
 
-## 動作確認の方法
-
-ビルド・テスト・lint コマンドはありません。動作確認は **ブラウザで `index.html` を開く** ことだけです。
+## コマンド
 
 ```bash
-# ブラウザで直接開く
-xdg-open index.html        # Linux
-open index.html            # macOS
-
-# 静的サーバー経由で見る場合
-python3 -m http.server 8000
+npm install        # 初回のみ
+npm run dev        # 開発サーバー (http://localhost:5173/)
+npm test           # Vitest (シミュレーションの単体テストと通しプレイ)
+npm run typecheck  # 型検査のみ
+npm run build      # 型検査 + dist/ へビルド (dist/ は静的配信するだけで動く)
 ```
 
-UI 変更を行ったときは、必ずブラウザで開いて以下を最低限確認してください。
+変更したら `npm test` と `npm run build` を通してください。UI を変えたときは `npm run dev` で開き、次を確認します。
 
-- ロード時にエラーが出ないこと (DevTools の Console を確認)
-- 主要操作 (プラント建設 / 原料購入 / ターン終了 / 研究投資) が破綻しないこと
-- 画面が想定通り再描画されること
-
-自動テストがないため、「型チェックが通った=動く」ではない点に注意してください。
+- Console にエラーが出ないこと
+- 装置の配置 / 配管の敷設 / 「次の期へ」/ 契約の受注 / 研究 が破綻しないこと
+- 再読み込みで進行が復元されること (毎期 localStorage に自動保存)
 
 ## ファイル構成と責務
 
@@ -37,74 +34,98 @@ UI 変更を行ったときは、必ずブラウザで開いて以下を最低�
 
 <!-- BEGIN:FILE-TREE -->
 ```
-css/style.css
 index.html
-js/data.js
-js/main.js
-js/simulation.js
-js/ui.js
+src/data/chemicals.ts
+src/data/devices.ts
+src/data/eras.ts
+src/data/events.ts
+src/data/techs.ts
+src/main.ts
+src/sim/contracts.ts
+src/sim/era.ts
+src/sim/events.ts
+src/sim/finance.ts
+src/sim/grid.ts
+src/sim/market.ts
+src/sim/network.ts
+src/sim/production.ts
+src/sim/research.ts
+src/sim/rng.ts
+src/sim/save.ts
+src/sim/state.ts
+src/sim/turn.ts
+src/ui/app.ts
+src/ui/format.ts
+src/ui/input.ts
+src/ui/panels.ts
+src/ui/renderer.ts
+src/ui/style.css
+tests/helpers.ts
+tests/playthrough.test.ts
+tests/sim.test.ts
 ```
 <!-- END:FILE-TREE -->
 
-各ファイルの責務 (こちらは手動メンテナンス。新規ファイル追加時は追記してください):
+各ディレクトリの責務 (こちらは手動メンテナンス。新規ファイル追加時は追記してください):
 
-| ファイル | 責務 |
+| 場所 | 責務 |
 |---|---|
-| `index.html` | エントリポイント。`<script>` タグで `js/*` を順序通りロード |
-| `css/style.css` | 全UIのスタイル (CSS変数で色テーマを管理) |
-| `js/data.js` | 静的データ定義のみ (`CHEMICALS` / `PROCESSES` / `ERAS` / `TECH_LEVELS` / `RESEARCH_CATEGORIES`) |
-| `js/simulation.js` | ゲームロジック。`state` を保持し、ターン進行・市場・生産・販売・研究を計算 |
-| `js/ui.js` | DOMレンダリングとイベントハンドラ。各タブの描画関数とモーダル制御 |
-| `js/main.js` | 初期化とトップレベルのイベントバインド |
+| `index.html` | エントリポイント。`src/main.ts` を読み込む |
+| `src/data/` | 静的データ定義のみ。物質 (`chemicals.ts`)、装置と製法 (`devices.ts`)、技術ツリー (`techs.ts`)、時代・目標・規制 (`eras.ts`)、顧客名とイベント (`events.ts`) |
+| `src/sim/state.ts` | `GameState` の型と初期状態、技術による補正 (`getMods`) |
+| `src/sim/grid.ts` | 装置の配置・撤去、配管の敷設・撤去、敷地拡張 |
+| `src/sim/network.ts` | 配管網の検出 (`findNetworks`) と物質の配分 (`distribute`) |
+| `src/sim/production.ts` | 受入・反応・出荷・放出、稼働率と停止理由の判定 |
+| `src/sim/market.ts` | 価格変動とスポット販売 |
+| `src/sim/contracts.ts` | 引き合いの生成、受注、納入と違約金、信用 |
+| `src/sim/finance.ts` | 固定費、借入、汚染の罰金、企業価値、破産判定 |
+| `src/sim/era.ts` / `events.ts` / `research.ts` | 時代目標と時代の進行 / イベント / 研究 |
+| `src/sim/turn.ts` | 1期の処理順 (`endTurn`) |
+| `src/sim/save.ts` / `rng.ts` | セーブの直列化 / シード付き乱数 |
+| `src/ui/app.ts` | 画面で共有する状態 (`game` `ui`) と再描画の起点 (`refresh` `redrawBoard`) |
+| `src/ui/renderer.ts` / `input.ts` | 敷地の Canvas 描画 / マウス・キーボード操作 |
+| `src/ui/panels.ts` | ヘッダー・ツールバー・右パネル・モーダルの描画とボタン操作 |
+| `tests/` | `sim.test.ts` (単体)、`playthrough.test.ts` (シード固定の通しプレイで採算を検証)、`helpers.ts` (定石レイアウト) |
 
 ### ファイル一覧の自動更新
 
-ファイルの追加・削除・リネームは `scripts/update-agent-md.py` を実行することで上のツリー部分に反映されます。
-
-```bash
-python3 scripts/update-agent-md.py
-```
-
-このスクリプトは Claude Code の `PostToolUse` フック (`.claude/settings.json`) からも自動実行されるため、Claude Code でファイル操作を行った場合は手で実行する必要はありません。ツリーと責務テーブルに差分が出たら、責務テーブル側を更新してください。
+ファイルの追加・削除・リネームは `scripts/update-agent-md.py` を実行することで上のツリー部分に反映されます。Claude Code の `PostToolUse` フック (`.claude/settings.json`) からも自動実行されます。
 
 ## アーキテクチャ上の重要な前提
 
-- **モジュールシステムなし**: `import` / `export` は使っていません。`<script>` タグで読み込まれる順 (data → simulation → ui → main) のグローバルスコープに各定数・関数が並びます。新しい関数や定数を追加する場合もこの方針を踏襲してください。
-- **共有グローバル変数**: `state` (ゲーム状態本体)、`prevPrices`、`nextPlantId`、`activeTab` などはファイル間で共有されています。命名は重複しないよう注意。
-- **状態の一元管理**: ゲーム状態は `simulation.js` の `state` オブジェクトに集約されています。UI 側で独立した state を持たせず、`state` を読み書きしてから `render()` / `renderTab()` で再描画する流れに統一してください。
-- **永続化なし**: 現状セーブ・ロード機構はありません。リロードすると初期状態に戻ります。永続化を導入する場合は localStorage が無難です。
-- **`'use strict';`** を各 JS ファイル先頭に置いています。新規ファイルでも維持してください。
-- **乱数を含む処理** (`updateMarket` 等) はターン進行のたびに結果が変わります。デバッグの際はシード固定が必要なら一時的に `Math.random` を差し替える形が現実的です。
+- **`src/sim/` は DOM に依存させない**: 純粋な関数で `GameState` を書き換えるだけにし、Vitest で検証します。`window` `document` `localStorage` を直接触るのは `src/ui/` だけです。
+- **状態の一元管理**: ゲーム状態は `GameState` 1つに集約し、そのまま JSON にしてセーブします。関数や `Map`/`Set` など JSON にできないものを入れないでください。フィールドを増減したら `SAVE_VERSION` を上げます。
+- **乱数は `src/sim/rng.ts` だけを使う**: `Math.random` を使うと、セーブ後の再現性と通しプレイのテストが壊れます。
+- **1期の処理順** (`turn.ts`): 生産 → 配管による配分 → 契約納入 → スポット販売 → 決算 → イベント → 相場更新 → 引き合い更新 → 時代判定 → 破産判定。装置は入出力バッファ (1期分の2倍) を持ち、1段につき1期の遅れで物質が流れます。
+- **配分の優先度** (`network.ts`): 反応装置 → 貯槽 → 出荷 → 放出・投棄。貯槽は反応装置の不足分にだけ払い出します。
+- **UI の更新**: `GameState` を書き換えたら `refresh()` (全体再描画 + 自動保存)。マウス移動など敷地だけの更新は `redrawBoard()`。ボタンは `data-act` / `data-arg` 属性を付け、`panels.ts` の `handleAction` で処理します。
 
 ## コーディング規約
 
-- **言語**: 画面表示テキスト・ログ・コメントは **日本語** で統一されています。新しい UI 文言や説明コメントも日本語で書いてください。
-- **インデント**: スペース2つ。
-- **クォート**: シングルクォート (`'...'`)。
-- **金額表示**: `¥` プレフィックス + 3桁区切り (例: `¥12,000`)。`ui.js` の既存ヘルパーを使ってください。
-- **DOM 操作**: フレームワーク不使用。`document.getElementById` / `querySelector` / `innerHTML` を素直に使う既存スタイルに合わせてください。
-- **コメント**: 過剰な説明コメントは追加しないでください。データ定義の区切りには `// ===…` のセクションコメントを使う既存パターンがあります。
-- **絵文字**: ユーザーから明示要求がない限り、コード・ドキュメントとも絵文字は使わないでください。
+- **言語**: 画面表示テキスト・ログ・コメント・テスト名は **日本語**。
+- **インデント**: スペース2つ。**クォート**: シングルクォート。
+- **金額表示**: `src/ui/format.ts` の `yen()` (例: `¥12,000`)、数量は `qty()` を使う。
+- **コメント**: 過剰な説明コメントは追加しない。ファイル先頭や区切りには `// ===…` のセクションコメントを使う。
+- **絵文字**: ユーザーから明示要求がない限り、コード・ドキュメントとも使わない。
 
 ## 機能拡張の典型パターン
 
-新しい化学物質・プロセス・研究カテゴリを追加する際は、原則として **`js/data.js` を起点に** してください。
+原則として **`src/data/` を起点に** してください。データ追加だけで完結するものがほとんどです。
 
 | 追加したいもの | 主な変更箇所 |
 |---|---|
-| 新しい化学物質 | `data.js` の `CHEMICALS`。原料/製品の区別 (`isRaw`) と需要の初期値 (`ERAS[*].baseDemand`) を忘れずに |
-| 新しい製造プロセス | `data.js` の `PROCESSES` に追加。`TECH_LEVELS[*].unlocks` で解禁条件を設定 |
-| 新しい時代 | `ERAS` に追加し、対応する `TECH_LEVELS[*].eraIndex` を更新 |
-| 新しい研究カテゴリ | `RESEARCH_CATEGORIES` に追加し、必要なら `simulation.js` の `getModifiers` に効果適用ロジックを追加 |
+| 新しい物質 | `chemicals.ts`。`kind` (原料/製品/廃棄物)、`phase` (煙突か廃棄場かを決める)、`marketSize`、`pollution` を設定 |
+| 新しい装置・製法 | `devices.ts`。解禁条件は `tech`。対応する技術を `techs.ts` に追加 |
+| 新しい技術効果 | `techs.ts` の `TechEffect` と `state.ts` の `getMods`、効果を使う計算箇所 |
+| 新しい時代 | `eras.ts` に追加 (相場・市場規模の倍率、規制、目標)。技術の `era` を合わせる |
+| 新しい固定イベント | `data/events.ts` の `SCRIPTED_EVENTS` と `sim/events.ts` の `applyScripted` |
 
-データ定義だけで完結するケースが多いですが、新しい *種類* の効果 (例: 新しい補正ロジック) を追加する場合は `simulation.js` の生産・販売計算箇所も更新が必要です。
+数値を変えたら `npm test` の通しプレイ出力 (規制前後の平均損益など) で採算を確認してください。第2・第3時代には通しプレイのテストがまだないので、追加する場合は `tests/helpers.ts` に定石レイアウトを足します。
 
 ## 作業時のチェックリスト
 
-コミット前に以下を確認してください。
-
-- [ ] `index.html` をブラウザで開き、Console にエラーが出ていない
-- [ ] プラント建設・原料購入・ターン終了・研究投資の主要操作が動く
-- [ ] 既存の UI レイアウトが崩れていない
+- [ ] `npm test` と `npm run build` が通る
+- [ ] `npm run dev` で開き、Console にエラーが出ていない
+- [ ] 配置・配管・期の進行・契約・研究・再読み込みの復元が動く
 - [ ] 日本語表示テキストの誤字・揺れがない
-- [ ] 不要なグローバル変数を増やしていない
+- [ ] `GameState` を変えたなら `SAVE_VERSION` を上げた
