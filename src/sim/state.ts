@@ -210,7 +210,6 @@ export interface Mods {
   marketSizeMult: number;
   maintenanceMult: number;
   yieldMult: Partial<Record<DeviceTypeId, number>>;
-  pipeLayers: number;
 }
 
 export function getMods(state: GameState): Mods {
@@ -220,7 +219,6 @@ export function getMods(state: GameState): Mods {
     marketSizeMult: 1,
     maintenanceMult: 1,
     yieldMult: {},
-    pipeLayers: 1,
   };
   for (const id of state.techs) {
     const eff = TECHS[id]?.effect;
@@ -229,7 +227,6 @@ export function getMods(state: GameState): Mods {
     if (eff.rawPriceMult) mods.rawPriceMult *= eff.rawPriceMult;
     if (eff.marketSizeMult) mods.marketSizeMult *= eff.marketSizeMult;
     if (eff.maintenanceMult) mods.maintenanceMult *= eff.maintenanceMult;
-    if (eff.pipeLayers) mods.pipeLayers = Math.max(mods.pipeLayers, eff.pipeLayers);
     if (eff.yieldMult) {
       for (const [dev, mult] of Object.entries(eff.yieldMult)) {
         const key = dev as DeviceTypeId;

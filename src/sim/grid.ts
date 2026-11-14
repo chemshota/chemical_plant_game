@@ -1,7 +1,7 @@
 import { CHEMICALS, type ChemId } from '../data/chemicals';
 import { DEVICE_TYPES, type DeviceTypeId } from '../data/devices';
 import {
-  addLog, getMods, tileKey, SITE_EXPAND_STEP, SITE_MAX_W,
+  addLog, tileKey, SITE_EXPAND_STEP, SITE_MAX_W,
   type Device, type GameState,
 } from './state';
 
@@ -10,7 +10,8 @@ import {
 // ============================================================
 
 export const PIPE_COST = 100;
-export const PIPE_SHARED_COST = 300;
+// 1タイルに通せる配管の本数 (別の物質どうしは同じタイルで交差できる)
+export const PIPE_LAYERS = 3;
 export const DEMOLISH_REFUND = 0.3;
 
 export interface Result {
@@ -112,25 +113,15 @@ export function setDeviceEnabled(state: GameState, id: number, enabled: boolean)
   if (d) d.enabled = enabled;
 }
 
-export function pipeCostAt(state: GameState, x: number, y: number): number {
-  return state.pipes[tileKey(x, y)]?.length ? PIPE_SHARED_COST : PIPE_COST;
-}
-
 export function addPipe(state: GameState, x: number, y: number, chem: ChemId): Result {
   if (x < 0 || y < 0 || x >= state.site.w || y >= state.site.h) return fail('敷地の外です');
   if (deviceAt(state, x, y)) return fail('装置の上には敷けません');
   const key = tileKey(x, y);
   const current = state.pipes[key] ?? [];
   if (current.includes(chem)) return fail('すでに敷設済みです');
-  const layers = getMods(state).pipeLayers;
-  if (current.length >= layers) {
-    return fail(layers === 1
-      ? '別の物質の配管があります (交差にはパイプラックの研究が必要)'
-      : `1タイルに通せる配管は ${layers} 本までです`);
-  }
-  const cost = pipeCostAt(state, x, y);
-  if (state.money < cost) return fail('資金が足りません');
-  state.money -= cost;
+  if (current.length >= PIPE_LAYERS) return fail(`1タイルに通せる配管は ${PIPE_LAYERS} 本までです`);
+  if (state.money < PIPE_COST) return fail('資金が足りません');
+  state.money -= PIPE_COST;
   state.pipes[key] = [...current, chem];
   return ok();
 }

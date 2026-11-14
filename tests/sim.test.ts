@@ -29,15 +29,17 @@ describe('敷地と配管', () => {
     expect(placeDevice(state, 'lead_chamber', 4, 4).ok).toBe(false);
   });
 
-  it('別の物質の配管は、パイプラックを研究するまで同じタイルに通せない', () => {
+  it('別の物質の配管は同じタイルで交差でき、交差しても混ざらない', () => {
     const state = createInitialState(1);
-    pipes(state, 'sulfur', [[5, 5]]);
+    pipes(state, 'sulfur', [[4, 5], [5, 5], [6, 5]]);
+    pipes(state, 'salt', [[5, 4], [5, 5], [5, 6]]);
+    expect(state.pipes['5,5']).toEqual(['sulfur', 'salt']);
+    expect(findNetworks(state).map(n => `${n.chem}:${n.tiles.length}`).sort()).toEqual(['salt:3', 'sulfur:3']);
     expect(addPipe(state, 5, 5, 'salt').ok).toBe(false);
-    state.rp = 100;
-    expect(researchTech(state, 'pipe_rack').ok).toBe(true);
-    expect(addPipe(state, 5, 5, 'salt').ok).toBe(true);
+    expect(addPipe(state, 5, 5, 'coal').ok).toBe(true);
+    expect(addPipe(state, 5, 5, 'limestone').ok).toBe(false);
     expect(removePipe(state, 5, 5, 'salt')).toBe(true);
-    expect(state.pipes['5,5']).toEqual(['sulfur']);
+    expect(state.pipes['5,5']).toEqual(['sulfur', 'coal']);
   });
 
   it('同じ物質のつながった配管は1つの配管網になり、隣接する装置を拾う', () => {

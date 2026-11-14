@@ -15,8 +15,6 @@ export interface TechEffect {
   maintenanceMult?: number;
   // 装置ごとの出力倍率
   yieldMult?: Partial<Record<DeviceTypeId, number>>;
-  // 1タイルに通せる配管の本数
-  pipeLayers?: number;
 }
 
 export interface Tech {
@@ -42,11 +40,6 @@ export const TECHS: Record<string, Tech> = {
   chance_process: {
     name: '硫黄回収 (チャンス法)', era: 0, cost: 50, requires: [],
     desc: '硫黄回収装置を建設できる。残渣を硫黄に戻す',
-  },
-  pipe_rack: {
-    name: 'パイプラック', era: 0, cost: 40, requires: [],
-    desc: '1つのタイルに配管を3本まで通せる。配管を交差させられる',
-    effect: { pipeLayers: 3 },
   },
   gay_lussac: {
     name: 'ゲイ=リュサック塔', era: 0, cost: 40, requires: [],
